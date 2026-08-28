@@ -86,15 +86,19 @@ table(Valid_c2$forest_class)
 
 ## Exploring "Valid_c2_coords_GFT2020_V1.csv" (exported from GEE)  ####
 
-library(googledrive)
-drive_auth()
-2
-drive_ls() %>% print(n = 30)
+dwnld_it <- "no"
 
-drive_download("Valid_c2_coords_GFT2020_V1.csv", 
-               path = paste0(dir_GFTv1_assessment_c2, "Valid_c2_coords_GFT2020_V1.csv"),
-               overwrite = TRUE,
-               verbose = FALSE) %>% with_drive_quiet()
+if(dwnld_it == "yes"){
+  library(googledrive)
+  drive_auth()
+  2
+  drive_ls() %>% print(n = 30)
+  
+  drive_download("Valid_c2_coords_GFT2020_V1.csv", 
+                 path = paste0(dir_GFTv1_assessment_c2, "Valid_c2_coords_GFT2020_V1.csv"),
+                 overwrite = TRUE,
+                 verbose = FALSE) %>% with_drive_quiet()
+}
 
 
 ## Exploring the dataset
@@ -190,8 +194,13 @@ p <- ggplot(cm, aes(x = GFT_forest, y = ValidC2_forest_class, fill = n)) +
 
 p
 
-ggsave(paste0(dir_GFTv1_assessment_c2, "Valid_C2_GFT2020_V1_Forest_NonForest_confusion_matrix.png"), 
-       p, width = 7, height = 6, dpi = 300)
+sve_it <- "no"
+if(sve_it == "yes"){
+  ggsave(paste0(dir_GFTv1_assessment_c2, "Valid_C2_GFT2020_V1_Forest_NonForest_confusion_matrix.png"), 
+         p, width = 7, height = 6, dpi = 300)
+}
+
+
 
 
 
@@ -209,110 +218,47 @@ length(unique(strata_area$Strata))  # 149 strata, from 1001 to 8226
 
 # load the files with the sample units interpretation and the map values
 
-### GFC_v2_Valid_v2 ####
-scenario <- read.csv(paste0(dir_assessment2024, "combined_scenario_all_GFCV2.csv"), sep = ",", na.strings = c("NA", "N/A"), stringsAsFactors = FALSE)
+### GFT_v1_Valid_c2 ####
+#scenario_kk <- read.csv(paste0(dir_assessment2024, "combined_scenario_all_GFCV2.csv"), sep = ",", na.strings = c#("NA", "N/A"), stringsAsFactors = FALSE)
+#head(scenario_kk)
+#
+#table(scenario_kk$forest_class_num)
+#table(scenario_kk$forest_class)
 
-head(scenario)
-names(scenario)   # "pixel_center_x"   "pixel_center_y"   "sample_id"  "forest_class_num"   "strata"   "GFC_v2"    "gaul"
-nrow(scenario)   # 21752
-
-apply(scenario, 2, function(x) sum(is.na(x)))   # no NAs
-
-sort(unique(scenario$forest_class_num))
-sort(table(scenario$forest_class_num))
-#   100     1       0 
-#    24  6598   15130       # 24 samples with forest_class_num = 100 are those not assigned in 2024; not included in the assessment
-
-table(scenario$strata)      # 64 samples with strata = 0 (no strata); not included in the assessment
-table(scenario$gaul)        # 59 smaples with gaul = 0 (no gaul); not included in the assessment. However, keep in mind that 5 of these are 
-#    0       1              # already not included because they do not have strata; therefore 54 additional samples not included
-#   59   21693 
+head(Valid_c2_GFT2020_V1_full)
 
 
-table(scenario$GFC_v2)      
-#     0       1 
-# 14386    7366  
-
-
-
-
-### GFC_v2_Valid_v3 ####
-scenario_GFC_v2_Valid_v3 <- read.csv(paste0(dir_Valid_v3, "Final_2026_GFC_Validation_Dataset.csv"))
-head(scenario_GFC_v2_Valid_v3)
-nrow(scenario_GFC_v2_Valid_v3)   # 21752
-
-names(scenario_GFC_v2_Valid_v3)  # "ID" "Region" "location_id" "X2024_1st_sample_id" "groupid" "forest_class" "confidence_level" "type_class" "class_issues" "comment" "strata" "gaul" "continent_gaul" "UsedIn_1stAssessment"  
-
-
-# "pixel_center_x"   "pixel_center_y"   "sample_id"  "forest_class_num"   "strata"   "GFC_v2"    "gaul"
-
-head(scenario_GFC_v2_Valid_v3)
-
-range(scenario_GFC_v2_Valid_v3$X2024_1st_sample_id)
-range(scenario$sample_id)
-
-scenario_GFC_v2_Valid_v3 %>% 
-  select("X2024_1st_sample_id", "forest_class", "UsedIn_1stAssessment") %>% 
-  #pull("forest_class") %>% is.na() %>% sum()          # 13
-  #pull("forest_class") %>% table()                     # Forest  6666    Non-forest 15073
-  pull("UsedIn_1stAssessment") %>% table()              #  no  140;   yes  21612
-
-       
-scenario %>% 
-  #pull(forest_class_num) %>% is.na() %>% sum()      # 0
-  pull(forest_class_num) %>% table()                 #  0  15130;     1  6598;     100  24
-
-
-
-scenario_GFC_v2_Valid_v3 <- scenario_GFC_v2_Valid_v3 %>% 
-  #select("X2024_1st_sample_id", "forest_class", "UsedIn_1stAssessment") %>% 
-  select("X2024_1st_sample_id", "forest_class") %>% 
+scenario <- Valid_c2_GFT2020_V1_full %>% 
+  rename(pixel_center_x = X2024_1st_pixel_center_x, 
+         pixel_center_y = X2024_1st_pixel_center_y, 
+         sample_id = X2024_1st_sample_id) %>% 
   mutate(
-    forest_class_num_v3 = case_when(
+    forest_class_num = case_when(
       forest_class == "Forest" ~ 1,
       forest_class == "Non-forest" ~ 0,
       is.na(forest_class) ~ 100
     )
-  )   %>% #head()
-  select(-forest_class) #%>% head()
-
-
-head(scenario_GFC_v2_Valid_v3)
-table(scenario_GFC_v2_Valid_v3$forest_class_num_v3)
-# 0         1   100 
-# 15073  6666    13 
-
-
-
-scenario <- scenario %>% 
-  left_join(scenario_GFC_v2_Valid_v3, by = c("sample_id" = "X2024_1st_sample_id")) %>% #head()
-  mutate(
-    forest_class_num_v3 = if_else(
-      forest_class_num == 100,
-      100,
-      forest_class_num_v3
-    )
-  ) #%>% filter(forest_class_num == 100)
-
+  ) %>% 
+  select(pixel_center_x, 
+         pixel_center_y, 
+         sample_id, 
+         forest_class_num, 
+         type_class,
+         strata, GFT2020_V1, gaul)
 
 head(scenario)
-sum(is.na(scenario$forest_class_num_v3))  # 0
+table(scenario$forest_class)
+table(scenario$forest_class_num)
+#     0     1 
+# 14954  6658 
 
 
-write.csv(scenario, paste0(dir_2ndAssessment_GFC2020_v2_Valid_v3, "scenario_GFC_v2_Valid_v3.csv"), row.names = FALSE)
+names(scenario)   # "pixel_center_x"   "pixel_center_y"   "sample_id"  "forest_class_num"   "strata"   "GFT2020_V1"    "gaul"
+nrow(scenario)   # 21612
 
-
-### loading 'scenario_GFC_v2_Valid_v3' ####
-scenario <- read.csv(paste0(dir_2ndAssessment_GFC2020_v2_Valid_v3, "scenario_GFC_v2_Valid_v3.csv"))
-
-
-scenario <- scenario %>% #head()
-  select(pixel_center_x, pixel_center_y, sample_id,
-         forest_class_num_v3,
-         strata, GFC_v2, gaul) %>% #head()
-  rename(forest_class_num = forest_class_num_v3) #%>% head()
-
-
+apply(scenario, 2, function(x) sum(is.na(x)))   # no NAs, except GFT2020_V1 (14887) <- Non-Forest in GFT
+sort(unique(scenario$forest_class_num))
+head(scenario)
 
 
 ## Strata info ####
@@ -331,7 +277,7 @@ sum(Nh_strata)
 
 
 ## Sample units interpretation and map values ####
-dim(scenario)  # 21752, 7
+dim(scenario)  # 21612, 7
 sum(is.na(scenario$strata))  # 0
 
 
@@ -351,16 +297,78 @@ dim(df_dropped_2)
 
 
 # drop the samples located outside the FAO GAUL boundaries - 54 additional samples
+table(df_dropped_2$gaul)
 
 df_dropped_3 <- df_dropped_2 %>% 
   filter(gaul != "0")
 
-dim(df_dropped_3)  # 21612, 7
+dim(df_dropped_3)  # 21612, 8
+head(df_dropped_3)
+
+unique(df_dropped_3$type_class)
+unique(df_dropped_3$forest_class_num)
+unique(df_dropped_3$GFT2020_V1)
+table(df_dropped_3$type_class)
+table(df_dropped_3$forest_class_num)
+table(df_dropped_3$GFT2020_V1)
+sum(is.na(df_dropped_3$GFT2020_V1))
+
+
+# Creating a new reference (validation data set c2) forest type variable
+df_dropped_3 <- df_dropped_3 %>%
+  mutate(
+    forest_type = case_when(
+      type_class %in% c(
+        "no trees or shrubs present",
+        "trees outside forest",
+        "trees inside forest",
+        "other wooded land",
+        "trees for agricultural use",
+        "trees in urban areas"
+      ) ~ 0,
+      type_class == "Naturally regenerating forest" ~ 1,
+      type_class == "Planted or plantation forest" ~ 2
+    )
+  )
+head(df_dropped_3)
+sum(is.na(df_dropped_3$forest_type)) # 0
+table(df_dropped_3$forest_type)
+#     0     1 (natural)     2 (planted)
+# 14954  6100             558 
+
+
+# Creating the correspondent GFT forest type variable
+
+df_dropped_3 <- df_dropped_3 %>%
+  mutate(
+    GFT_type = case_when(
+      GFT2020_V1 %in% c(1, 10) ~ 1,
+      GFT2020_V1 == 20 ~ 2,
+      is.na(GFT2020_V1) ~ 0
+    )
+  )
+
+head(df_dropped_3)
+sum(is.na(df_dropped_3$GFT_type)) # 0
+table(df_dropped_3$GFT_type)
+#     0     1     2 
+# 14887  6098   627      (6098 + 627 = 6725)
+
+addmargins(
+  table(
+  Reference = df_dropped_3$forest_type,
+  GFT = df_dropped_3$GFT_type
+  )
+)
+
+
 
 # clean dataset
 map_ref_values <- df_dropped_3
 head(map_ref_values)
 nrow(map_ref_values)  # 21612
+
+
 
 
 
@@ -373,22 +381,26 @@ nrow(map_ref_values)  # 21612
 # s character vector. Strata class labels. The object will be coerced to factor.
 s <- map_ref_values$strata
 sum(is.na(s)) # 0
-
+table(s)
 
 
 # r character vector. Reference class labels (validation dataset). The object will be coerced to factor.
-r <- map_ref_values$forest_class_num
+r <- map_ref_values$forest_type
+head(r)
+table(r)
 
 
 # m character vector. Map class labels (results of the model: GFC2020_vX -- v2 in this case). The object will be coerced to factor.
-m <- map_ref_values$GFC_v2
+m <- map_ref_values$GFT_type
+table(m)
 
 
-# need to indicate the order for the labels of the matrix (0 non forest, 1 forest)
-order <- c(0,1)
+# need to indicate the order for the labels of the matrix (0: Non-forest; 1: Natural/Primary; 2: Planted/Plantation.
+order <- c(0, 1, 2)  
+
 scenario_AA <- stehman2014(s,           # Strata class labels
                            r,           # Reference class labels (validation dataset)
-                           m,           # Map class labels (results of the model: GFC2020_vX)
+                           m,           # Map class labels (results of the model: GFT2020_vX)
                            Nh_strata,   # Number of pixels forming each stratum (it's actually the area in ha) 
                            margins = TRUE,
                            order)
@@ -399,43 +411,40 @@ scenario_AA
 ### Results ####
 
 ## Overall accuracy
-scenario_AA$OA   # 0.9150627          # Valid_v3: 0.9159055
-round(scenario_AA$OA, 3)   # 0.915    # Valid_v3: 0.916
+scenario_AA$OA   # 0.9154376
+round(scenario_AA$OA, 3)   # 0.915
 
 
-## User's accuracy of the two classes. Related to the Commission Error (False positives)
+## User's accuracy of the 3 classes. Related to the Commission Error (False positives)
 scenario_AA$UA
 
-#    0 (Non-For)         1  (For)
-# 0.9630748            0.8200459 
-# 0.9636623            0.8213937      (Valid_v3)
-
+#  0 (Non-For)     1 (Natural)     2 (planted) 
+#    0.9548987       0.8529271       0.4267526
 
 
 1 - scenario_AA$UA#[2]
+
+# 0            1            2 
+# 0.04510134   0.14707287   0.57324737 
+
+# Commission Error (Non-forest) = 0.045
+# Commission Error (Natural)    = 0.147
+# Commission Error (Planted)    = 0.573
+# The estimated commission error for the Naturally regenerating Forest class was 14.7%, indicating that  
+# approximately 15% of the area mapped as Naturally regenerating Forest is estimated to correspond  
+# to other reference classes (Non-forest or Planted/plantation forest).
+
+# More than half of the area mapped by GFT as Planted/plantation (57.3%) is estimated to belong to another reference class.
+
+
+
+## GFCv2 (just for comparison)
 #           0            1 
-#  0.03692525   0.17995405     # Coommission Error = 0.17995405
-                               # The estimated commission error for the Forest class was 18.0%, indicating that approximately 18%
-                               # of the area mapped as Forest is estimated to correspond to Non-forest in the reference data.
-#  0.03633772   0.17860631     # Coommission Error = 0.17860631    (Valid_v3)
+#  0.03692525   0.17995405     # GFCv2 Commission Error (forest)      = 0.17995405
+                               # GFCv2 Commission Error (Non-forest)  = 0.037 
+                               # (about 3.7% of the area (or pixels) mapped as Non-forest is 
+                               # estimated to actually be Forest.)
 
-
-
-print(paste0("Commission Error (Forest class) = ",
-             round((1 - scenario_AA$UA[2]), 3)))  
-
-print(paste0("Commission Error (Non-Forest class) = ",
-             round((1 - scenario_AA$UA[1]), 3)))        # 0.037 (about 3.7% of the area (or pixels) mapped as Non-forest is 
-                                                        # estimated to actually be Forest.)
-                                                        # 0.036   (Valid_v3)
-
-
-
-# | Class      | User's Accuracy | Commission Error | Meaning                                              |
-# | ---------- | --------------: | ---------------: | ---------------------------------------------------- |
-# | Forest     |           82.0% |            18.0% | 18% of mapped Forest pixels are false positives      |
-# | Non-forest |           96.3% |             3.7% | 3.7% of mapped Non-forest pixels are false positives |
-  
 
 
 
@@ -443,66 +452,94 @@ print(paste0("Commission Error (Non-Forest class) = ",
 ## Producer's accuracy. Related to Omission Error (False Negatives)
 scenario_AA$PA
 
-#         0         1 
-# 0.9137283   0.9181793 
-# 0.9143668   0.9194979     (Valid_v3)
+#         0           1            2
+# 0.9433225   0.8672492    0.5314436  
 
 
-print(paste0("Ommission Error (Forest) = ",
-             round((1 - scenario_AA$PA[2]), 3)))  # An estimated 8.2% of the pixels that are truly Forest were mapped as Non-forest.
-                                                  #              8.1%   (Valid_v3)
+print(paste0("Ommission Error (Non-forest) = ",
+             round((1 - scenario_AA$PA[1]), 3)))  # An estimated 5.7% of the pixels that are truly Non-forest were mapped as one of the forest classes.
 
-print(paste0("Ommission Error (Non-Forest) = ",
-             round((1 - scenario_AA$PA[1]), 3)))  # An estimated 8.6% of the pixels that are truly Non-forest were mapped as Forest.
-#                                                                8.6%   (Valid_v3)
+
+print(paste0("Ommission Error (Naturally Regenerating Forest) = ",
+             round((1 - scenario_AA$PA[2]), 3)))  # An estimated 13.3% of the pixels that are truly Naturally Regenerating Forest were mapped as
+                                                  # either  Planted Forest or Non-Forest.
+
+print(paste0("Ommission Error (Planted / Plantation Forest) = ",
+             round((1 - scenario_AA$PA[3]), 3)))  # An estimated 46.9% of the pixels that are truly Planted / Plantation Forest were mapped as
+                                                  # either Naturally Regenerating Forest or Non-Forest.
 
 
 ## Conclusion:
-## The estimated omission error for the Forest class was 8.2% (Valid_v3: 8.1%), indicating that approximately 8.2% of the pixels that are truly 
-## Forest were mapped as Non-forest. Conversely, the estimated commission error was 18.0% (Valid_v3: 17.9%), indicating that approximately 18.0% 
-## of the pixels mapped as Forest are estimated to actually be Non-forest.
+## 
+
+
 
 ## Standard error of OA
-scenario_AA$SEoa    # 0.002220113   (Valid_v3: 0.002267183)
-round(((1.96*scenario_AA$SEoa)*100), 1)   # 0.4  (Valid_v3: 0.4)
+scenario_AA$SEoa    # 0.002206576 
+round(((1.96*scenario_AA$SEoa)*100), 1)   # 0.4 
+
 
 ## Standard error of UA
 scenario_AA$SEua
-#           0             1 
-# 0.001892472   0.005269710 
-# 0.001890410   0.005387148    (Valid_v3)
+#           0             1             2
+# 0.002035794   0.005266056   0.023853870
 
 
 ## standard error of PA
 scenario_AA$SEpa
-#           0           1 
-# 0.002605602   0.004073868 
-# 0.002690058   0.004066892    (Valid_v3)
+#           0             1             2
+# 0.002195413   0.005055741   0.027248449  
+
 
 ## Proportion of area 
 scenario_AA$area
-#         0         1 
-# 0.7001962 0.2998038 
-# 0.7001341 0.2998659    (Valid_v3)
+#         0             1              2
+# 0.70013412   0.28475867     0.01510722 
+
 
 ## standard error of area proportion
 scenario_AA$SEa
-#           0           1 
-# 0.003158123   0.003158123 
-# 0.003123383   0.003123383    (Valid_v3)
+#            0               1               2
+#  0.003123383     0.003097202     0.000791796 
 
 
-## Confusion error (area proportion). Rows and columns represent map and reference class labels, respectively
+
+## Confusion error (area proportion). Rows and columns represent map and reference class labels, respectively.
+## It is the area-adjusted error matrix: each cell is the estimated proportion of the total assessed area, not the number of validation samples.
 scenario_AA$matrix
 
-#               0           1        sum
-# 0    0.63978911  0.02453015  0.6643193
-# 1    0.06040711  0.27527363  0.3356807
-# sum  0.70019622  0.29980378  1.0000000
-#
-# 0    0.6401794   0.02413985  0.6643193      (Valid_v3)
-# 1    0.0599547   0.27572604  0.3356807
-# sum  0.7001341   0.29986588  1.0000000
+#                                 Reference (validation)
+#                        0           1            2         sum  
+#    G |  0    0.660452257  0.02895764  0.002236540  0.69164644
+#    F |  1    0.037741473  0.24695673  0.004842043  0.28954025
+#    T |  2    0.001940385  0.00884430  0.008028633  0.01881332
+#         sum  0.700134115  0.28475867  0.015107215  1.00000000
+
+round((scenario_AA$matrix * 100), 1)
+
+# The problem is predominantly that GFT maps areas as Planted/plantation that the reference classifies as Naturally regenerating forest.
+# UA (planted) = 42.7 %;  Commission Error (Planted) = 57.3 %
+# Total area mapped as Planted:  0.001940385 + 0.00884430 + 0.008028633 = 0.01881332 
+                              # (GFT estimates 1.881% of the total area as Planted/plantation forest.)
+
+# 0.194 percentage points = GFT Planted -> Reference Non-Forest
+# 0.884 percentage points = GFT Planted -> Reference Natural
+# 0.803 percentage points = GFT Planted -> Reference Planted
+
+# 0.00884430 / 0.01881332 = 47.0 % of the area mapped as Planted is estimated to actually be Natural.
+# 0.001940385 / 0.01881332 = 10.3 % of the area mapped as Planted is estimated to actually be Non-Forest.
+# 47.0 + 10.3 = 57.3 % Commission Error (Planted)
+
+# Omission Error
+# 46.9% of the reference Planted/plantation forest area is omitted by GFT.
+# Reference Planted → GFT Natural: 32.1 %
+# Reference Planted → GFT Non-Forest: 14.8 %
+
+
+# Conclussion: 
+# The major issue with GFT's Planted class is over-mapping Planted forest in areas that the reference classifies as Naturally 
+# regenerating forest (commission error - planted: 57.3%).
+# Similarly, GFT fails to map a substantial proportion of reference Planted forest as Planted (omission error - planted: 46.9%)
 
 
 
@@ -510,25 +547,27 @@ scenario_AA$matrix
 z <- 1.96
 
 CI95_UA <- z * scenario_AA$SEua * 100; CI95_UA
-#          0           1 
-#  0.3709245   1.0328633 
-#  0.3705203   1.0558810      (Valid_v3)
+#          0           1           2
+#  0.3990156   1.0321469   4.6753586 
+
 
 CI95_PA <- z * scenario_AA$SEpa * 100; CI95_PA
-#          0           1 
-#  0.5106979   0.7984782 
-#  0.5272513   0.7971108     (Valid_v3)
+#          0           1           2
+#  0.4303009   0.9909252   5.3406960 
+
 
 ## Commission error (%)
 commission <- (1 - scenario_AA$UA) * 100
+commission
 
 ## Omission error (%)
 omission <- (1 - scenario_AA$PA) * 100
+omission
 
 
 
 ### Reporting table ####
-v <- "GFC_v2_Valid_v3"
+v <- "GFT_v1_Valid_c2"
 xlsx_fileName <- paste0("Table_ErrorMatrix_", v, ".xlsx")
 
 report_error_matrix <- function(data,
@@ -551,11 +590,11 @@ report_error_matrix <- function(data,
 
   raw <- addmargins(table(
     Map = factor(data[[map_col]],
-                 levels = c(0, 1),
-                 labels = c("Non-forest", "Forest")),
+                 levels = c(0, 1, 2),
+                 labels = c("Non-forest", "Natural Forest", "Planted Forest")),
     Reference = factor(data[[ref_col]],
-                       levels = c(0, 1),
-                       labels = c("Non-forest", "Forest"))
+                       levels = c(0, 1, 2),
+                       labels = c("Non-forest", "Natural Forest", "Planted Forest"))
   ))
   
   
@@ -566,13 +605,23 @@ report_error_matrix <- function(data,
   prop_1 <- round(assessment$matrix, 3) * 100
   
   prop['Non-forest', 'Non-forest'] <- prop_1["0", "0"]
-  prop['Non-forest', 'Forest'] <- prop_1["0", "1"]
+  prop['Non-forest', 'Natural Forest'] <- prop_1["0", "1"]
+  prop['Non-forest', 'Planted Forest'] <- prop_1["0", "2"]
   prop['Non-forest', 'Sum'] <- prop_1["0", "sum"]
-  prop['Forest', 'Non-forest'] <- prop_1["1", "0"]
-  prop['Forest', 'Forest'] <- prop_1["1", "1"]
-  prop['Forest', 'Sum'] <- prop_1["1", "sum"]
+  
+  prop['Natural Forest', 'Non-forest'] <- prop_1["1", "0"]
+  prop['Natural Forest', 'Natural Forest'] <- prop_1["1", "1"]
+  prop['Natural Forest', 'Planted Forest'] <- prop_1["1", "2"]
+  prop['Natural Forest', 'Sum'] <- prop_1["1", "sum"]
+  
+  prop['Planted Forest', 'Non-forest'] <- prop_1["2", "0"]
+  prop['Planted Forest', 'Natural Forest'] <- prop_1["2", "1"]
+  prop['Planted Forest', 'Planted Forest'] <- prop_1["2", "2"]
+  prop['Planted Forest', 'Sum'] <- prop_1["2", "sum"]
+  
   prop['Sum', 'Non-forest'] <- prop_1["sum", "0"]
-  prop['Sum', 'Forest'] <- prop_1["sum", "1"]
+  prop['Sum', 'Natural Forest'] <- prop_1["sum", "1"]
+  prop['Sum', 'Planted Forest'] <- prop_1["sum", "2"]
   prop['Sum', 'Sum'] <- prop_1["sum", "sum"]
   
   
@@ -588,6 +637,10 @@ report_error_matrix <- function(data,
     sprintf("%.1f (%.1f)",
             (1 - assessment$UA["1"]) * 100,
             1.96 * assessment$SEua["1"] * 100),
+    
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$UA["2"]) * 100,
+            1.96 * assessment$SEua["2"] * 100),
     
     "",
     ""
@@ -607,6 +660,10 @@ report_error_matrix <- function(data,
             (1 - assessment$PA["1"]) * 100,
             1.96 * assessment$SEpa["1"] * 100),
     
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$PA["2"]) * 100,
+            1.96 * assessment$SEpa["2"] * 100),
+    
     "",
     paste0("OA Acc. (CI95) [%] = ",
     sprintf("%.1f (%.1f)",
@@ -621,27 +678,30 @@ report_error_matrix <- function(data,
     
     Class = c(
       "Non-forest",
-      "Forest",
+      "Natural Forest",
+      "Planted Forest",
       "Total",
       "Omission (CI95) [%]"
     ),
     
-    Raw_NF    = c(raw[1,1], raw[2,1], raw[3,1], ""),
-    Raw_F     = c(raw[1,2], raw[2,2], raw[3,2], ""),
-    Raw_Total = c(raw[1,3], raw[2,3], raw[3,3], ""),
+    Raw_NonF    = c(raw[1,1], raw[2,1], raw[3,1], raw[4,1], ""),
+    Raw_NatF    = c(raw[1,2], raw[2,2], raw[3,2], raw[4,2], ""),
+    Raw_PlaF    = c(raw[1,3], raw[2,3], raw[3,3], raw[4,3], ""),
+    Raw_Total   = c(raw[1,4], raw[2,4], raw[3,4], raw[4,4], ""),
     
-    Prop_NF    = c(prop[1,1], prop[2,1], prop[3,1], omission[1]),
-    Prop_F     = c(prop[1,2], prop[2,2], prop[3,2], omission[2]),
-    Prop_Total = c(prop[1,3], prop[2,3], prop[3,3], ""),
+    Prop_NonF   = c(prop[1,1], prop[2,1], prop[3,1], prop[4,1], omission[1]),
+    Prop_NatF   = c(prop[1,2], prop[2,2], prop[3,2], prop[4,2], omission[2]),
+    Prop_PlaF   = c(prop[1,3], prop[2,3], prop[3,3], prop[4,3], omission[3]),
+    Prop_Total  = c(prop[1,4], prop[2,4], prop[3,4], prop[4,4], omission[4]),
     
     commission_ci95 = commission,
     check.names = FALSE
     
   )
   
-  report_table[4, "commission_ci95"] <- omission[4]
+  report_table[5, "commission_ci95"] <- omission[5]
   
-  names(report_table)[8] <- "Commission (CI95) [%]"
+  names(report_table)[10] <- "Commission (CI95) [%]"
   
 
   ## Excel
@@ -699,16 +759,16 @@ report_error_matrix <- function(data,
       "Proportions [%] (Reference)",
       ""
     ),
-    colwidths = c(1, 3, 3, 1)
+    colwidths = c(1, 4, 4, 1)
   )
   
   ft <- bold(ft, part = "header")
   ft <- align(ft, align = "center", part = "header")
   ft <- bold(ft, j = 1, bold = TRUE, part = "body")
-  ft <- align(ft, j = 2:8, align = "center", part = "body")
+  ft <- align(ft, j = 2:10, align = "center", part = "body")
   ft <- valign(ft, valign = "center", part = "all")
   ft <- autofit(ft)
-  ft <- bold(ft, i = 4, j = 8, bold = TRUE, part = "body")
+  ft <- bold(ft, i = 5, j = 10, bold = TRUE, part = "body")
   
 
   ## PNG
@@ -735,20 +795,19 @@ report_error_matrix <- function(data,
 
 
 ## Run the function
-Valid_v2 <- map_ref_values   # change the name to write correct file/tab names
-Valid_v3 <- map_ref_values   # change the name to write correct file/tab names
+Valid_c2 <- map_ref_values   # change the name to write correct file/tab names
 
 res <- report_error_matrix(
-  data       = Valid_v3,             # change the name
-  map_col    = "GFC_v2",             
-  ref_col    = "forest_class_num",
+  data       = Valid_c2,             # change the name
+  map_col    = "GFT_type",             
+  ref_col    = "forest_type",
   assessment = scenario_AA,
-  output_dir = dir_2ndAssessment_GFC2020_v2_Valid_v3     # change the name
+  output_dir = dir_GFTv1_assessment_c2     # change the name
 )
 
 res$raw_table
 res$table
-res$flextable  ## Table 4 of the 2025 repoort
+res$flextable  ## Table 4 of the 2025 report
 
 
 
@@ -757,620 +816,3 @@ res$flextable  ## Table 4 of the 2025 repoort
 ## MAPS ####
 
 ### Correctly and missclassified sample units (Figure 13) ####
-
-head(scenario) ; nrow(scenario)
-head(map_ref_values) ; nrow(map_ref_values)
-
-
-map_ref_values <- map_ref_values %>%
-  mutate(
-    class = case_when(
-      GFC_v2 == 0 & forest_class_num == 0 ~ "No forest",
-      GFC_v2 == 1 & forest_class_num == 1 ~ "Forest",
-      GFC_v2 == 1 & forest_class_num == 0 ~ "Commission error",
-      GFC_v2 == 0 & forest_class_num == 1 ~ "Omission error"
-    )
-  )
-
-head(map_ref_values)
-unique(map_ref_values$class)
-
-sum(is.na(map_ref_values$pixel_center_x))  # 0
-sum(is.na(map_ref_values$pixel_center_y))  # 0
-
-
-pts <- st_as_sf(
-  map_ref_values,
-  coords = c("pixel_center_x","pixel_center_y"),
-  crs = 4326)
-
-pts
-
-
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-
-# map
-figure_title <- "GFC2020_v2 / Valid_v2"
-figure_title <- "GFC2020_v2 / Valid_v3"
-
-p <- ggplot() +
-  geom_sf(data = world, fill = "white", colour = "black", linewidth = 0.2) +
-  geom_sf(data = filter(pts, class == "No forest"), aes(colour = "No forest"),
-    size = 0.10,
-    alpha = 0.25,
-    show.legend = TRUE) +
-  geom_sf(data = filter(pts, class == "Forest"), aes(colour = "Forest"),
-    size = 0.10,
-    alpha = 0.25,
-    show.legend = TRUE) +
-  geom_sf(data = filter(pts, class == "Commission error"), aes(colour = "Commission error"),
-    size = 1.20,
-    alpha = 0.95,
-    show.legend = TRUE) +
-  geom_sf(data = filter(pts, class == "Omission error"), aes(colour = "Omission error"),
-    size = 1.20,
-    alpha = 0.95,
-    show.legend = TRUE) +
-  scale_colour_manual(values = c("No forest" = "grey70", "Forest" = "#33A02C", "Commission error" = "#FDBF00", "Omission error" = "#1F78B4"),
-                      breaks = c("No forest", "Forest", "Commission error", "Omission error")) +
-  guides(colour = guide_legend(override.aes = list(size = c(2, 2, 4, 4), alpha = 1))) +
-  coord_sf(xlim = c(-180, 180), ylim = c(-60, 85), expand = FALSE) +
-  ggtitle(figure_title) +
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.90, face = "bold", size = 12, margin = margin(b = 10)),
-        plot.title.position = "plot", legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 11))
-
-p
-
-# save figure
-Fig13_Filename <- "Fig_ErrorDistribution_GFC2020_v2_Valid_v2.png"
-Fig13_Filename <- "Fig_ErrorDistribution_GFC2020_v2_Valid_v3.png"
-
-Fig13_dir <- dir_2ndAssessment
-Fig13_dir <- dir_2ndAssessment_GFC2020_v2_Valid_v3
-
-
-ggsave(filename = file.path(Fig13_dir, Fig13_Filename), 
-       plot = p, 
-       width = 20, height = 12, units = "cm", dpi = 600, bg = "white")
-
-
-
-
-
-## Sample units classified differently in GFC2020 V1 versus V2  --> a map (to be done!!)
-
-
-
-
-## Forest area in GFC2020 (Table 6) ####
-
-names(scenario_AA)
-head(strata_area)
-
-
-scenario_AA$area
-# 0           1 
-# 0.7001962   0.2998038 
-# 0.7001341   0.2998659     (Valid_v3)
-
-sum(scenario_AA$area)  # 1
-
-
-total_area <- sum(strata_area$strata_ha)
-
-forest_area <- scenario_AA$area["1"] * total_area
-forest_area <- forest_area / 10^6    # Mha
-forest_area   # 4021.075 Mha
-              # 4021.908 Mha   (Valid_v3)
-
-scenario_AA$SEa
-forest_se   <- scenario_AA$SEa["1"] * total_area
-forest_ci95 <- 1.96 * forest_se
-forest_ci95 <- round((forest_ci95 / 10^6), 1)
-forest_ci95  # 83
-             # 82.1  (Valid_v3)
-
-## In the repor
-
-
-
-### Calculate total forest area (not adjusted) ####
-#library(rgee)
-#ee_install_upgrade()
-#ee_Initialize()
-
-## rgee doesn't work. We'll use 'reticulate'
-library(reticulate)
-
-# Use the dedicated Python environment
-use_condaenv("rgee311", required = TRUE)
-
-# Import the Earth Engine Python package
-ee <- import("ee")
-
-# Authenticate
-ee$Authenticate()
-
-# Initialize Earth Engine
-ee$Initialize(project = "gfc2020-503311")
-
-
-## GEE is initialised, now we can run the calculations
-
-#gaul <- ee$FeatureCollection("FAO/GAUL/2015/level0")
-#ee$data$getAsset("JRC/GFC2020/V2")   # image collection
-#gfc <- ee$ImageCollection("JRC/GFC2020/V2")
-#gfc$size()$getInfo()  # 1420 images (very likely one image per tile)
-#gfc_img$bandNames()$getInfo()  # Each image has a single band called "Map". THerefore, first() would give us only the first tile
-
-# The collection is organized as:
-# Geographic tiles (N0_E0, N0_E10, N0_E100, ...)
-# Each geographic tile is further split into four internal chunks (0000000000-0000000000, etc.)
-# The tiles overlap, so mosaic() removes overlapping
-
-
-## Forest area
-## Clement's GEE script: https://code.earthengine.google.com/7cfb76f43e06c22856311f81662552da
-
-run_this <- "no"
-
-if(run_this == "yes"){
-  
-  py_run_string("
-import ee
-
-# ---------------------------------------------------------------------
-# GFC v2
-# ---------------------------------------------------------------------
-
-# Mosaic the collection into a single image (remove overlapping)
-GFCv2 = ee.ImageCollection('JRC/GFC2020/V2').mosaic()
-
-# Spatial zones to iterate over
-Zones = ee.FeatureCollection(
-    'projects/ee-astridverhegghen/assets/EUFO/continents/gaul2015_GFC_1deg-final'
-)
-
-# ---------------------------------------------------------------------
-# Forest layer
-# ---------------------------------------------------------------------
-
-# Keep only value 1 (forest), rename the band.
-# ee.Image.cat() is kept for fidelity with the original script.
-AllClasses = ee.Image.cat(
-    GFCv2.eq(1).rename('Forest_v2')
-)
-
-# ---------------------------------------------------------------------
-# Function applied to every feature
-# ---------------------------------------------------------------------
-
-def LOOPsamples(feature):
-
-    vals = (
-        AllClasses
-        .multiply(ee.Image.pixelArea())
-        .reduceRegion(
-            reducer = ee.Reducer.sum(),
-            geometry = feature.geometry(),
-            scale = 10,
-            maxPixels = 1e13
-        )
-    )
-
-    return (
-        ee.Feature(None, vals)
-        .copyProperties(feature, feature.propertyNames())
-    )
-
-# Apply the function to every feature
-LOOPresult2 = Zones.map(LOOPsamples)
-
-# ---------------------------------------------------------------------
-# Export
-# ---------------------------------------------------------------------
-
-task = ee.batch.Export.table.toDrive(
-    collection = LOOPresult2,
-    description = 'JRC_GFC_v2_gaul2015_GFC_1deg-final',
-    folder = 'EarthEngine',
-    fileNamePrefix = 'JRC_GFC_v2_gaul2015_GFC_1deg-final',
-    fileFormat = 'CSV'
-)
-
-task.start()
-
-print('Task submitted.')
-")
-
-  
-}
-
-
-
-
-
-## Results after running Clement's GEE script (from this R session)
-library(googledrive)
-
-drive_ls("EarthEngine")
-2
-file <- drive_find("JRC_GFC_v2_gaul2015_GFC_1deg-final.csv")
-drive_download(
-  file,
-  path = paste0(dir_2ndAssessment, "JRC_GFC_v2_gaul2015_GFC_1deg-final.csv"),
-  overwrite = TRUE
-)
-
-areas <- read.csv(paste0(dir_2ndAssessment, "JRC_GFC_v2_gaul2015_GFC_1deg-final.csv"))
-#areas <- read.csv(paste0(dir_2ndAssessment, "JRC_GFC_v2_gaul2015_GFC_1deg-final_old.csv"))
-head(areas)
-names(areas)
-unique(areas$Forest_v2)
-
-sum(is.na(areas$Forest_v2)) # 0 NA's
-
-
-mapped_area <- round(sum(areas$Forest_v2)/10^10, 0)    # m2 to Mha
-sum(areas$Forest_v2)/10^10    # m2 to Mha    # 4561.726       ; old script: 4561.726
-sum(areas$Forest_v2)          # m2           # 4.561726e+13   ; old script: 4.561726e+13
-format(sum(areas$Forest_v2), scientific = FALSE)  # 45617263160131  m2   ;  old script: 45617263160131
-
-mapped_area  # this is exactly the number reported in the first assessment. (4562 Mha)
-
-
-
-
-
-
-### Table 6 reproduction ####
-
-fra_area <- 4058
-
-report_table6 <- data.frame(
-  Metric = "Forest area (Mha)",
-  `GFC2020 V2` = sprintf("%.1f", mapped_area),
-  `Reference set (95% CI)` = sprintf("%.1f (±%.1f)",
-                                      forest_area,
-                                      forest_ci95),
-  `FAO-FRA 2020` = sprintf("%.0f", fra_area),
-  check.names = FALSE
-)
-
-report_table6
-
-
-ft <- flextable(report_table6)
-
-ft <- theme_booktabs(ft)
-
-ft <- bold(ft, part = "header")
-ft <- bold(ft, j = 1)
-
-ft <- align(ft, align = "center", part = "header")
-ft <- align(ft, j = 1, align = "left", part = "body")
-ft <- align(ft, j = 2:4, align = "right", part = "body")
-
-ft <- border_outer(
-  ft,
-  border = fp_border(color = "black", width = 1)
-)
-
-ft <- border_inner_h(
-  ft,
-  border = fp_border(color = "grey70", width = 0.5)
-)
-
-ft <- border_inner_v(
-  ft,
-  border = fp_border(color = "grey70", width = 0.5)
-)
-
-ft <- bg(ft, bg = "white", part = "all")
-
-ft <- autofit(ft)
-
-ft
-
-
-# to excel
-
-wb <- createWorkbook()
-
-addWorksheet(wb, "Forest_area_GFC_v2_Valid_v2")
-addWorksheet(wb, "Forest_area_GFC_v2_Valid_v3")
-
-writeData(wb,
-          #sheet = "Forest_area_GFC_v2_Valid_v2",
-          sheet = "Forest_area_GFC_v2_Valid_v3",
-          report_table6)
-
-
-v <- "GFC_v2_Valid_v3"
-xlsx_fileName <- "Forest_area_report.xlsx"
-xlsx_fileName <- paste0("Forest_area_report_", v, ".xlsx")
-
-xlsx_dir <- dir_2ndAssessment
-xlsx_dir <- dir_2ndAssessment_GFC2020_v2_Valid_v3
-
-saveWorkbook(wb, file = file.path(xlsx_dir, xlsx_fileName), overwrite = TRUE)
-
-
-# to png
-png_fileName <- "Forest_area_GFC_v2_Valid_v2.png"
-png_fileName <- paste0("Forest_area_", v, ".png")
-
-save_as_image(ft, path = file.path(xlsx_dir, png_fileName))
-
-
-
-
-
-
-
-##  Assessment of forest and land use types (Fig 18) --> bar charts and maps (to be done) ########
-
-## Figure 18 shows the number of correctly or incorrectly classified sample units in GFC2020 V2 for each forest or 
-## land use land type (columns “No trees or shrubs present” and “Primary or naturally regenerating forest” are 
-## scaled to the second y-axis).
-
-
-GFC_v2_gaul <- readxl::read_excel("/Users/xavi_rp/Documents/JRC_D1/AccuracyAssessment_first/GFC_v2_accuracy-assessment_gaul.xlsx", sheet = "5_combined")
-
-GFC_v2_gaul %>% data.frame() %>% head()
-
-head(GFC_v2_gaul)
-names(GFC_v2_gaul)
-nrow(GFC_v2_gaul)  # 21612, only those for the assessment
-
-
-Valid_v3 <- read.csv(paste0(dir_Valid_v3, "Final_2026_GFC_Validation_Dataset.csv"))
-head(Valid_v3)
-
-Valid_v3 <- Valid_v3 %>% 
-  filter(UsedIn_1stAssessment == "yes")  #%>% nrow()
-
-nrow(Valid_v3)   # 21612
-names(Valid_v3)
-head(Valid_v3)
-
-
-GFC_v2_Valid_v3 <- GFC_v2_gaul %>% 
-  select(sample_id, GFC_v2) %>% 
-  left_join(Valid_v3, by = c("sample_id" = "X2024_1st_sample_id")) #%>% 
-
-head(GFC_v2_Valid_v3)
-nrow(GFC_v2_Valid_v3)
-
-sum(is.na(GFC_v2_Valid_v3$forest_class))   # 0
-sum(is.na(GFC_v2_Valid_v3$type_class))   # 0
-sort(unique(GFC_v2_Valid_v3$type_class))
-sort(unique(GFC_v2_Valid_v3$GFC_v2))   # 0, 1
-
-
-
-fig18 <- GFC_v2_Valid_v3 %>%
-  mutate(
-    Result = case_when(
-      forest_class == "Forest"     & GFC_v2 == 1 ~ "Forest",       # FOR in Valid_v3 and FOR in GFC_v2
-      forest_class == "Forest"     & GFC_v2 == 0 ~ "Forest mapped non-forest",
-      forest_class == "Non-forest" & GFC_v2 == 0 ~ "Non-forest",
-      forest_class == "Non-forest" & GFC_v2 == 1 ~ "Non-forest mapped forest"
-    ),
-    # Labels exactly as in the report
-    Type = recode(
-      type_class,   # Type class in Valid_v3
-      "other wooded land"                  = "Other wooded land",
-      "trees for agricultural use"         = "Trees for agricultural use",
-      "trees in urban areas"               = "Trees in urban areas",
-      "trees inside forest"                = "Trees inside forest",
-      "trees outside forest"               = "Trees outside forest",
-      "no trees or shrubs present"         = "No trees or shrubs present",
-      "Naturally regenerating forest"      = "Primary or naturally regenerating forest",
-      "Planted or plantation forest"       = "Planted or plantation forest"
-    )
-  ) 
-
-
-fig18_sum <- fig18 %>%
-  count(Type, Result)
-
-fig18_sum
-
-
-#defining the order:
-fig18_sum$Type <- factor(
-  fig18_sum$Type,
-  levels = c(
-    "Other wooded land",
-    "Trees for agricultural use",
-    "Trees in urban areas",
-    "Trees inside forest",
-    "Trees outside forest",
-    "No trees or shrubs present",
-    "Primary or naturally regenerating forest",
-    "Planted or plantation forest"
-  )
-)
-
-fig18_sum$Result <- factor(
-  fig18_sum$Result,
-  levels = c(
-    "Non-forest",
-    "Non-forest mapped forest",
-    "Forest",
-    "Forest mapped non-forest"
-  )
-)
-
-fig18_sum
-str(fig18_sum)
-
-scale_factor <- 5
-
-fig18_plot <- fig18_sum %>%
-  mutate(
-    n_plot = if_else(
-      Type %in% c(
-        "No trees or shrubs present",
-        "Primary or naturally regenerating forest"
-      ),
-      n / scale_factor,
-      n
-    )
-  )
-
-
-figure_title <- "GFC2020_v2 / Valid_v2"
-figure_title <- "GFC2020_v2 / Valid_v3"
-
-p18 <- ggplot(fig18_plot, aes(x = Type, y = n_plot, fill = Result)) +
-  geom_col(width = 0.75, position = position_stack(reverse = TRUE))  +
-  scale_fill_manual(
-    values = c(
-      "Non-forest"               = "#F57C00",
-      "Non-forest mapped forest" = "#4F9DD9",
-      "Forest"                   = "#66BB33",
-      "Forest mapped non-forest" = "#F4C20D"
-    ),
-    breaks = c(
-      "Non-forest",
-      "Non-forest mapped forest",
-      "Forest",
-      "Forest mapped non-forest"
-    )
-  ) +
-  scale_y_continuous(name = "Sample units", 
-                     sec.axis = sec_axis(~ . * scale_factor, name = "Sample units")) +
-  labs(x = NULL, y = "Sample units", fill = NULL) +
-  theme_bw() +
-  theme(
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
-    axis.title.y = element_text(size = 12),
-    legend.text = element_text(size = 11),
-    axis.text.y.right = element_text(colour = "red"),
-    axis.title.y.right = element_text(colour = "red"),
-    axis.ticks.y.right = element_line(colour = "red"),
-    #axis.line.y.right = element_line(colour = "red")
-  ) +
-  ggtitle(figure_title) +
-  geom_col(
-    data = subset(
-      fig18_plot,
-      Type %in% c(
-        "No trees or shrubs present",
-        "Primary or naturally regenerating forest"
-      )
-    ),
-    aes(y = n_plot),
-    fill = NA,
-    colour = "red",
-    linewidth = 0.8,
-    width = 0.75,
-    position = position_stack(reverse = TRUE)
-  )
-
-p18
-
-p18_v <- "GFC2020_v2_Valid_v2"
-p18_v <- "GFC2020_v2_Valid_v3"
-
-p18_filename <- paste0("Fig18_TypesBarPlot_", p18_v, ".png")
-
-p18_dir <- paste0(dir_2ndAssessment, "GFC2020_v2_Valid_v3")
-
-ggsave(
-  filename = file.path(p18_dir, p18_filename),
-  plot = p18,
-  device = ragg::agg_png,
-  width = 18,
-  height = 15,
-  units = "cm",
-  dpi = 600,
-  bg = "white"
-)
-
-
-## Plotting the results in a table
-
-ft_18 <- fig18_sum %>%
-  arrange(Type) %>%
-  pivot_wider(
-    names_from = Result,
-    values_from = n,
-    values_fill = 0
-  )  %>% 
-  flextable()
-
-ft_18 <- theme_booktabs(ft_18)
-ft_18 <- bold(ft_18, part = "header")
-ft_18 <- bold(ft_18, j = 1)
-ft_18 <- align(ft_18, align = "center", part = "header")
-ft_18 <- align(ft_18, j = 2:5, align = "center", part = "body")
-ft_18 <- border_outer(ft_18, border = fp_border(color = "black", width = 1))
-ft_18 <- border_inner_h(ft_18, border = fp_border(color = "grey70", width = 0.5))
-ft_18 <- border_inner_v(ft_18, border = fp_border(color = "grey70", width = 0.5))
-ft_18 <- bg(ft_18, bg = "white", part = "all")
-ft_18 <- autofit(ft_18)
-
-ft_18
-
-p18_dir
-
-save_as_image(ft_18, path = file.path(paste0(p18_dir, "/Table_Figure18_", p18_v, ".png")))
-
-
-#
-
-fig18_sum_kk <- fig18_sum %>%
-  arrange(Type) %>%
-  pivot_wider(
-    names_from = Result,
-    values_from = n,
-    values_fill = 0
-  ) %>% as.data.frame()
-
-apply(fig18_sum_kk[, 2:5], 2, sum)
-
-#  Non-forest       Non-forest mapped forest        Forest        Forest mapped non-forest 
-#  13710                     1244                     6097                      561 
-
-#
-
-
-
-## Regional Assessment ####
-dir_assessment2024
-scenario
-
-
-dir_2ndAssessment
-
-list.files(dir_assessment2024)
-list.files("/Users/xavi_rp/Documents/JRC_D1/AccuracyAssessment_first")
-
-GFC_v2_gaul <- readxl::read_excel("/Users/xavi_rp/Documents/JRC_D1/AccuracyAssessment_first/GFC_v2_accuracy-assessment_gaul.xlsx", sheet = "5_combined")
-
-names(GFC_v2_gaul)
-nrow(GFC_v2_gaul)  # 21612, only those for the assessment
-
-sort(unique(GFC_v2_gaul$continent))
-sort(unique(GFC_v2_gaul$continent_gaul))
-
-#
-
-
-
-
-
-## Agreement Validation dataset v2 and v3 ####
-
-## Table 7. Overall agreement, underestimation and overestimation of forest in the first interpretation for assessment regions of the second interpretation and globally.
-
-
-
