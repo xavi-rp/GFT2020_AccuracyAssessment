@@ -576,7 +576,8 @@ report_error_matrix <- function(data,
                                 assessment,
                                 output_dir,
                                 sheet_name = NULL,
-                                excel_file = xlsx_fileName) {
+                                excel_file = xlsx_fileName,
+                                export_file = "no") {
   
   ## Names
 
@@ -687,7 +688,7 @@ report_error_matrix <- function(data,
     Raw_NonF    = c(raw[1,1], raw[2,1], raw[3,1], raw[4,1], ""),
     Raw_NatF    = c(raw[1,2], raw[2,2], raw[3,2], raw[4,2], ""),
     Raw_PlaF    = c(raw[1,3], raw[2,3], raw[3,3], raw[4,3], ""),
-    Raw_Total   = c(raw[1,4], raw[2,4], raw[3,4], raw[4,4], ""),
+    Counts_Total   = c(raw[1,4], raw[2,4], raw[3,4], raw[4,4], ""),
     
     Prop_NonF   = c(prop[1,1], prop[2,1], prop[3,1], prop[4,1], omission[1]),
     Prop_NatF   = c(prop[1,2], prop[2,2], prop[3,2], prop[4,2], omission[2]),
@@ -730,11 +731,15 @@ report_error_matrix <- function(data,
     x = report_table
   )
   
-  saveWorkbook(
-    wb,
-    excel_path,
-    overwrite = TRUE
-  )
+  if (export_file == "yes"){
+    saveWorkbook(
+      wb,
+      excel_path,
+      overwrite = TRUE
+    )
+  } else{
+    print("excel table not exported to disk")
+  }
   
   ## Flextable
 
@@ -773,11 +778,18 @@ report_error_matrix <- function(data,
 
   ## PNG
 
-  save_as_image(
-    ft,
-    path = file.path(output_dir,
-                     paste0(sheet_name, ".png"))
-  )
+  if (export_file == "yes"){
+
+    save_as_image(
+      ft,
+      path = file.path(output_dir,
+                       paste0(sheet_name, ".png"))
+    )
+  } else {
+    print("png image not exported to disk")
+  }
+  
+
   
 
   ## Return objects
@@ -816,3 +828,199 @@ res$flextable  ## Table 4 of the 2025 report
 ## MAPS ####
 
 ### Correctly and missclassified sample units (Figure 13) ####
+
+head(scenario) ; nrow(scenario)
+head(map_ref_values) ; nrow(map_ref_values)
+unique(map_ref_values$GFT_type)  # 0, 1, 2
+unique(map_ref_values$forest_type)  # 0, 1, 2   # c("Non-forest", "Natural Forest", "Planted Forest")
+
+map_ref_values <- map_ref_values %>%
+  mutate(
+    class = case_when(
+      GFT_type == 0 & forest_type == 0 ~ "Non forest",
+      GFT_type == 1 & forest_type == 1 ~ "Natural Forest",
+      GFT_type == 2 & forest_type == 2 ~ "Planted Forest",
+      
+      GFT_type == 1 & (forest_type == 0 | forest_type == 2 ) ~ "Commission error (Natural Forest)",
+      GFT_type == 2 & (forest_type == 0 | forest_type == 1 ) ~ "Commission error (Planted Forest)",
+      
+      (GFT_type == 0 | GFT_type == 2) & forest_type == 1 ~ "Omission error (Natural Forest)",
+      (GFT_type == 0 | GFT_type == 1) & forest_type == 2 ~ "Omission error (Planted Forest)"
+    )
+  )
+
+head(map_ref_values)
+unique(map_ref_values$class)
+
+sum(is.na(map_ref_values$pixel_center_x))  # 0
+sum(is.na(map_ref_values$pixel_center_y))  # 0
+
+
+pts <- st_as_sf(
+  map_ref_values,
+  coords = c("pixel_center_x","pixel_center_y"),
+  crs = 4326)
+
+pts
+table(pts$class)
+
+
+#world <- ne_countries(scale = "medium", returnclass = "sf")
+world <- ne_download(scale = "medium", type = "land", category = "physical", returnclass = "sf")
+
+# map
+figure_title <- "GFT2020_v1 / Valid_c2"
+
+
+
+plot_error_map <- function(pts, world, figure_title = NULL) {
+  
+  # Classes actually present in pts
+  classes <- unique(pts$class)
+  classes <- classes[!is.na(classes)]
+  
+  # Colours
+  class_colours <- c(
+    "Natural Forest" = "#95B958",
+    "Planted Forest" = "#6A3D9A",
+    "Commission error (Natural Forest)" = "#FF7F00",
+    "Commission error (Planted Forest)" = "#FDBF00",
+    "Omission error (Natural Forest)" = "#1F78B4",
+    "Omission error (Planted Forest)" = "#6E9F6D"
+  )
+  
+  # Point sizes
+  class_sizes <- c(
+    "Natural Forest" = 0.60,
+    "Planted Forest" = 0.60,
+    "Commission error (Natural Forest)" = 1.20,
+    "Commission error (Planted Forest)" = 1.20,
+    "Omission error (Natural Forest)" = 1.20,
+    "Omission error (Planted Forest)" = 1.20
+  )
+  
+  # Legend point sizes
+  legend_sizes <- c(
+    "Natural Forest" = 2,
+    "Planted Forest" = 2,
+    "Commission error (Natural Forest)" = 4,
+    "Commission error (Planted Forest)" = 4,
+    "Omission error (Natural Forest)" = 4,
+    "Omission error (Planted Forest)" = 4
+  )
+  
+  # Start plot
+  p <- ggplot() +
+    geom_sf(
+      data = world,
+      fill = "white",
+      colour = "black",
+      linewidth = 0.2
+    )
+  
+  # Add one layer for each class present
+  for (cl in classes) {
+    
+    p <- p +
+      geom_sf(
+        data = filter(pts, class == cl),
+        aes(colour = class),
+        size = class_sizes[cl],
+        alpha = ifelse(cl %in% c("Natural Forest", "Planted Forest"),
+                       0.25, 0.95),
+        show.legend = TRUE
+      )
+  }
+  
+  # Keep only colours/classes that actually occur
+  
+  class_order <- c(
+    "Natural Forest",
+    "Planted Forest",
+    "Commission error (Natural Forest)",
+    "Commission error (Planted Forest)",
+    "Omission error (Natural Forest)",
+    "Omission error (Planted Forest)"
+  )
+  
+  p <- p +
+    scale_colour_manual(
+      values = class_colours[classes],
+      breaks = class_order[class_order %in% classes]
+    ) +
+    
+    guides(
+      colour = guide_legend(
+        override.aes = list(
+          size = legend_sizes[class_order[class_order %in% classes]],
+          alpha = 1
+        )
+      )
+    ) +
+    
+    coord_sf(
+      xlim = c(-180, 180),
+      ylim = c(-60, 85),
+      expand = FALSE
+    ) +
+    
+    ggtitle(figure_title) +
+    
+    theme_void() +
+    theme(
+      plot.title = element_text(
+        hjust = 0.90,
+        face = "bold",
+        size = 12,
+        margin = margin(b = 10)
+      ),
+      plot.title.position = "plot",
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11)
+    )
+  
+  return(p)
+}
+
+
+head(pts)
+unique(pts$class)
+#"Natural Forest"                    "Non forest"                        "Omission error (Natural Forest)" #"Commission error (Natural Forest)" "Commission error (Planted Forest)" "Planted Forest"                  #"Omission error (Planted Forest)" 
+
+## Planted forests
+pts_planted <- pts %>% 
+  filter(class %in% c("Planted Forest", "Commission error (Planted Forest)", "Omission error (Planted Forest)"))
+
+p_planted_1<- plot_error_map(pts = pts_planted, world = world, figure_title = figure_title)
+p_planted_1
+
+# save figure
+Fig13_dir <- dir_GFTv1_assessment_c2
+Fig13_Filename <- paste0("Fig_ErrorDistribution_", "PlantedForest",
+                         "_GFT2020_v1_Valid_c2.png")
+
+ggsave(filename = file.path(Fig13_dir, Fig13_Filename), 
+       plot = p_planted_1, 
+       width = 20, height = 12, units = "cm", dpi = 600, bg = "white")
+
+
+
+## Natural Foorests
+pts_natural <- pts %>% 
+  filter(class %in% c("Natural Forest", "Commission error (Natural Forest)", "Omission error (Natural Forest)"))
+
+p_natural_1<- plot_error_map(pts = pts_natural, world = world, figure_title = figure_title)
+p_natural_1
+
+
+
+# save figure
+Fig13_Filename <- paste0("Fig_ErrorDistribution_", "NaturalForest",
+                         "_GFT2020_v1_Valid_c2.png")
+
+ggsave(filename = file.path(Fig13_dir, Fig13_Filename), 
+       plot = p_natural_1, 
+       width = 20, height = 12, units = "cm", dpi = 600, bg = "white")
+
+
