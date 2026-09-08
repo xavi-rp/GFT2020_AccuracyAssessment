@@ -865,6 +865,51 @@ pts
 table(pts$class)
 
 
+##___________
+
+### Write errors in KMLs ####
+GFT_ref_errors <- pts %>% 
+  rename(GFT_C2_Assessment = class)
+
+table(GFT_ref_errors$GFT_C2_Assessment)
+
+
+## all samples (can be filtered using 'GFT_C2_Assessment')
+st_write(GFT_ref_errors, 
+         paste0(dir_GFTv1_assessment_c2, "GFT_C2_Assessment.kml"),
+         delete_dsn = TRUE)
+
+
+
+## Commission error (Planted Forest)
+GFT_C2_CommissErrorPlanted <- GFT_ref_errors %>% 
+  filter(GFT_C2_Assessment == "Commission error (Planted Forest)") #%>% print()
+
+GFT_C2_CommissErrorPlanted
+
+st_write(GFT_C2_CommissErrorPlanted, 
+         paste0(dir_GFTv1_assessment_c2, "GFT_C2_CommissErrorPlanted.kml"),
+         delete_dsn = TRUE)
+
+
+
+## All errors
+table(GFT_ref_errors$GFT_C2_Assessment)
+
+GFT_C2_AllErrors <- GFT_ref_errors %>% 
+  filter(str_starts(GFT_C2_Assessment, "^(Comm|Om)")) #%>% pull("GFT_C2_Assessment") %>% table()
+
+table(GFT_C2_AllErrors$GFT_C2_Assessment)
+
+st_write(GFT_C2_AllErrors, 
+         paste0(dir_GFTv1_assessment_c2, "GFT_C2_AllErrors.kml"),
+         delete_dsn = TRUE)
+
+##___________
+
+
+
+
 #world <- ne_countries(scale = "medium", returnclass = "sf")
 world <- ne_download(scale = "medium", type = "land", category = "physical", returnclass = "sf")
 
@@ -990,7 +1035,8 @@ unique(pts$class)
 
 ## Planted forests
 pts_planted <- pts %>% 
-  filter(class %in% c("Planted Forest", "Commission error (Planted Forest)", "Omission error (Planted Forest)"))
+  #filter(class %in% c("Planted Forest", "Commission error (Planted Forest)", "Omission error (Planted Forest)"))
+  filter(class %in% c("Commission error (Planted Forest)", "Omission error (Planted Forest)"))
 
 p_planted_1<- plot_error_map(pts = pts_planted, world = world, figure_title = figure_title)
 p_planted_1
