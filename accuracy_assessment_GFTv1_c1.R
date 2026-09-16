@@ -553,7 +553,7 @@ round((scenario_AA$matrix * 100), 1)
 # Reference Planted → GFT Non-Forest: 14.8 %
 
 
-# Conclussion: 
+# Conclussion (c1): 
 # The major issue with GFT's Planted class is over-mapping Planted forest in areas that the reference classifies as Naturally 
 # regenerating forest (commission error - planted: %).
 # Similarly, GFT fails to map a substantial proportion of reference Planted forest as Planted (omission error - planted: %)

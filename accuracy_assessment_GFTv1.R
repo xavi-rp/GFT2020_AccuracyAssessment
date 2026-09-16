@@ -542,6 +542,18 @@ round((scenario_AA$matrix * 100), 1)
 # Similarly, GFT fails to map a substantial proportion of reference Planted forest as Planted (omission error - planted: 46.9%)
 
 
+## Natural
+# 0.038 percentage points = GFT Natural -> Reference Non-Forest
+# 0.247 percentage points = GFT Natural -> Reference Natural
+# 0.005 percentage points = GFT Natural -> Reference Planted
+
+# 0.004842043 / 0.28954025 = 1.7 % of the area mapped as Natural is estimated to actually be Planted
+# 0.037741473 / 0.28954025 = 13.0 % of the area mapped as Natural is estimated to actually be Non-Forest.
+# 1.7 + 13.0 = 14.7 % Commission Error (Natural)
+
+
+
+
 
 ## Confidence intervals:   CI95 = 1.96 × SE
 z <- 1.96
@@ -566,7 +578,7 @@ omission
 
 
 
-### Reporting table ####
+### Errors: Reporting table ####
 v <- "GFT_v1_Valid_c2"
 xlsx_fileName <- paste0("Table_ErrorMatrix_", v, ".xlsx")
 
@@ -825,7 +837,7 @@ res$flextable  ## Table 4 of the 2025 report
 
 
 
-## MAPS ####
+### MAPS ####
 
 ### Correctly and missclassified sample units (Figure 13) ####
 
@@ -875,9 +887,12 @@ table(GFT_ref_errors$GFT_C2_Assessment)
 
 
 ## all samples (can be filtered using 'GFT_C2_Assessment')
-st_write(GFT_ref_errors, 
-         paste0(dir_GFTv1_assessment_c2, "GFT_C2_Assessment.kml"),
-         delete_dsn = TRUE)
+write_this <- "no"
+if(write_this == "yes"){
+  st_write(GFT_ref_errors, 
+           paste0(dir_GFTv1_assessment_c2, "GFT_C2_Assessment.kml"),
+           delete_dsn = TRUE)
+}
 
 
 
@@ -887,10 +902,12 @@ GFT_C2_CommissErrorPlanted <- GFT_ref_errors %>%
 
 GFT_C2_CommissErrorPlanted
 
-st_write(GFT_C2_CommissErrorPlanted, 
-         paste0(dir_GFTv1_assessment_c2, "GFT_C2_CommissErrorPlanted.kml"),
-         delete_dsn = TRUE)
-
+write_this <- "no"
+if(write_this == "yes"){
+  st_write(GFT_C2_CommissErrorPlanted, 
+           paste0(dir_GFTv1_assessment_c2, "GFT_C2_CommissErrorPlanted.kml"),
+           delete_dsn = TRUE)
+}
 
 
 ## All errors
@@ -901,11 +918,796 @@ GFT_C2_AllErrors <- GFT_ref_errors %>%
 
 table(GFT_C2_AllErrors$GFT_C2_Assessment)
 
-st_write(GFT_C2_AllErrors, 
-         paste0(dir_GFTv1_assessment_c2, "GFT_C2_AllErrors.kml"),
-         delete_dsn = TRUE)
+write_this <- "no"
+if(write_this == "yes"){
+  st_write(GFT_C2_AllErrors, 
+           paste0(dir_GFTv1_assessment_c2, "GFT_C2_AllErrors.kml"),
+           delete_dsn = TRUE)
+}
+
 
 ##___________
+
+
+### Check Commission Errors ####
+
+GFT_C2_AllErrors %>% head()
+GFT_C2_AllErrors %>% pull(GFT_C2_Assessment) %>% unique() %>% sort()
+
+GFT_C2_AllErrors %>% #head()
+  #filter(str_starts(as.character(strata), "5") & str_starts(as.character(GFT_C2_Assessment), "Commi")) %>%  #nrow()   # 349
+  filter(str_starts(as.character(strata), "5") & str_starts(as.character(GFT_C2_Assessment), "Commi")) %>%  #nrow()   # 349
+  head()
+  #pull(strata) %>% unique() %>% sort()
+  #pull(sample_id) %in% c(1955516, 1955432) %>% sum()
+
+
+GFT_C2_AllErrors %>% #head()
+  filter(str_starts(as.character(GFT_C2_Assessment), "Commi")) %>%  #nrow()    # 1185
+  pull("strata") %>%  table()
+
+
+GFT_C2_AllErrors %>% #head()
+  filter(str_starts(as.character(GFT_C2_Assessment), "Commi")) %>% 
+  left_join(valid_all %>% select(Region, X2024_1st_sample_id), by = c("sample_id" = "X2024_1st_sample_id")) %>%  #nrow() # 1185   #head()
+  #pull("Region") %>%  is.na() %>%  sum()  # 0
+  #left_join(valid_all %>% select(Region, location_id), by = c("sample_id" = "location_id")) %>%  #nrow() # 1185   #head()
+  #pull("Region") %>%  is.na() %>%  sum()  # 845
+  pull("Region") %>%  table() %>%  #sum()
+  sort(decreasing = TRUE)
+
+  
+
+#        Northern, Central and Eastern Europe                  Northern Asia                  Eastern Asia 
+#                                         248                            179                           102 
+#                       Eastern South America           Mediterranean Europe     Alaska, Canada, Greenland 
+#                                         101                            101                            96 
+# USA, Mexico, Central America, the Caribbean                Southern Africa               Northern Africa 
+#                                          70                             60                            52 
+#                                   Australia          Western South America      South and Southeast Asia 
+#                                          51                             45                            42 
+#             New Zealand and Pacific Islands      Central Asia, Middle East
+#                                          24                             14
+
+
+##___________
+
+#### All points related to Comm / Omm Errors, in N-Europe ####
+# We will make a quick visual assessment over (50) 100 samples in this region that give error in the assessment (either Commission or Omission).
+# These newly visually assigned will be assessed against the C2 classes/subclasses
+
+GFT_C2_AllErrors %>% head()
+
+GFT_C2_AllErrors %>%   
+  left_join(valid_all %>% select(Region, X2024_1st_sample_id), by = c("sample_id" = "X2024_1st_sample_id")) %>% 
+  #pull("Region") %>% unique()
+  filter(Region == "Northern, Central and Eastern Europe") %>% #nrow()    # 285
+  select("sample_id") %>% plot()
+
+
+samples <- GFT_C2_AllErrors %>%   
+  left_join(valid_all %>% select(Region, X2024_1st_sample_id),
+            by = c("sample_id" = "X2024_1st_sample_id")) %>% 
+  filter(Region == "Northern, Central and Eastern Europe")
+
+set.seed(777)
+
+samples_2review_100 <- samples %>%
+  slice_sample(n = 100)
+
+samples_2review_50 <- samples_2review_100 %>%
+  slice_sample(n = 50)
+
+
+world <- ne_download(scale = "medium", type = "land", category = "physical", returnclass = "sf")
+
+
+ggplot() +
+  geom_sf(data = world, fill = "grey90") +
+  geom_sf(data = samples, size = 1) +
+  geom_sf(data = samples_2review_100, size = 1, , color = "green") +
+  geom_sf(data = samples_2review_50, size = 1, , color = "red") +
+  coord_sf(
+    xlim = st_bbox(samples)[c("xmin", "xmax")],
+    ylim = st_bbox(samples)[c("ymin", "ymax")],
+    expand = TRUE
+  )
+
+
+samples_2review_50
+
+samples_2review_50_df <- as.data.frame(st_drop_geometry(samples_2review_50))
+
+table(samples_2review_50_df$GFT_C2_Assessment)
+table(samples_2review_50_df$GFT2020_V1)
+
+
+samples_2review_50_df <- samples_2review_50_df %>% 
+  left_join(valid_all %>% select(Region, X2024_1st_sample_id,
+                                 "X2024_1st_forest_class", "X2024_1st_type_class",
+                                 "X2024_final_forest_class", "X2024_final_type_class",
+                                 "X2026_1st_forest_class", "X2026_1st_type_class",
+                                 "X2026_TieCall_forest_class", "X2026_TieCall_type_class"), 
+            by = c("sample_id" = "X2024_1st_sample_id"))# %>% head()
+
+write_this <- "no"
+if(write_this == "yes"){
+  openxlsx::write.xlsx(
+    samples_2review_50_df,
+    paste0(dir_GFTv1_assessment_c2, "samples_2review_50.xlsx"),
+    overwrite = TRUE
+  )
+}
+
+
+
+samples_2review_50_kml <- samples_2review_50 %>%
+  mutate(sample_id = as.character(sample_id))
+
+write_this <- "no"
+if(write_this == "yes"){
+  st_write(
+    samples_2review_50_kml,
+    paste0(dir_GFTv1_assessment_c2, "samples_2review_50.kml"),
+    driver = "KML",
+    layer_options = "NameField=sample_id",
+    delete_dsn = TRUE
+  )
+}
+
+
+# Next 50 samples
+samples_2review_100
+
+samples_2review_100_df <- as.data.frame(st_drop_geometry(samples_2review_100))
+
+table(samples_2review_100_df$GFT_C2_Assessment)
+table(samples_2review_100_df$GFT2020_V1)
+
+
+names(samples_2review_100_df)
+sum(samples_2review_100_df$sample_id %in% samples_2review_50_df$sample_id)
+  
+samples_2review_100_df_50 <- samples_2review_100_df %>% 
+  filter_out(sample_id %in% samples_2review_50_df$sample_id) #%>%  nrow()
+
+
+samples_2review_100_df_50 <- samples_2review_100_df_50 %>% 
+  left_join(valid_all %>% select(Region, X2024_1st_sample_id,
+                                 "X2024_1st_forest_class", "X2024_1st_type_class",
+                                 "X2024_final_forest_class", "X2024_final_type_class",
+                                 "X2026_1st_forest_class", "X2026_1st_type_class",
+                                 "X2026_TieCall_forest_class", "X2026_TieCall_type_class"), 
+            by = c("sample_id" = "X2024_1st_sample_id"))# %>% head()
+
+
+write_this <- "no"
+if(write_this == "yes"){
+  openxlsx::write.xlsx(
+    samples_2review_100_df_50,
+    paste0(dir_GFTv1_assessment_c2, "samples_2review_50_2.xlsx"),
+    overwrite = TRUE
+  )
+}
+
+
+
+samples_2review_100_2_kml <- samples_2review_100 %>% 
+  filter_out(sample_id %in% samples_2review_50$sample_id) %>%
+  mutate(sample_id = as.character(sample_id))
+
+
+write_this <- "no"
+if(write_this == "yes"){
+  st_write(
+    samples_2review_100_2_kml,
+    paste0(dir_GFTv1_assessment_c2, "samples_2review_50_2.kml"),
+    driver = "KML",
+    layer_options = "NameField=sample_id",
+    delete_dsn = TRUE
+  )
+}
+
+#
+
+
+
+# New file
+samples_reviewed <- read.csv(paste0(dir_GFTv1_assessment_c2, "samples_2review_50.csv"))
+samples_reviewed <- read.csv(paste0(dir_GFTv1_assessment_c2, "samples_2review_50_2.csv"))
+nrow(samples_reviewed)
+head(samples_reviewed)
+
+
+forest_check <- samples_reviewed %>%
+  mutate(
+    C2_forestClass = if_else(
+      forest_class_num == 1, "Forest", "Non-forest"
+    )
+  ) %>%
+  count(C2_forestClass, visual_forestClass) %>%
+  complete(
+    C2_forestClass = c("Forest", "Non-forest"),
+    visual_forestClass = c("Forest", "Non-forest"),
+    fill = list(n = 0)
+  ) %>%
+  pivot_wider(
+    names_from = visual_forestClass,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  mutate(
+    Total = Forest + `Non-forest`
+  ) %>%
+  mutate(
+    across(everything(), as.character)
+  )
+
+agreement <- samples_reviewed %>%
+  mutate(
+    C2_forestClass = if_else(
+      forest_class_num == 1, "Forest", "Non-forest"
+    )
+  ) %>%
+  summarise(
+    agreement = sum(C2_forestClass == visual_forestClass),
+    n = n(),
+    agreement_pct = 100 * agreement / n
+  )
+
+forest_check <- bind_rows(
+  forest_check,
+  tibble(
+    C2_forestClass = "Overall agreement",
+    Forest = "",
+    `Non-forest` = "",
+    Total = paste0(
+      agreement$agreement, "/",
+      agreement$n, " (",
+      agreement$agreement_pct, "%)"
+    )
+  )
+)
+
+forest_check %>% data.frame()
+
+
+
+## Type class
+samples_reviewed %>%
+  count(type_class, visual_forestType)
+
+
+
+class_type_check <- samples_reviewed %>%
+  mutate(
+    C2_forestClass = if_else(
+      forest_class_num == 1, "Forest", "Non-forest"
+    )
+  ) %>%
+  filter(C2_forestClass == visual_forestClass) %>%
+  mutate(
+    C2_forestType = case_when(
+      type_class %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ type_class
+    ),
+    visual_forestType = case_when(
+      visual_forestType %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ visual_forestType
+    )
+  ) %>%
+  count(C2_forestType, visual_forestType) %>%
+  pivot_wider(
+    names_from = visual_forestType,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  complete(
+    C2_forestType = c(
+      "Naturally regenerating forest",
+      "Planted or plantation forest",
+      "Other LU"
+    ),
+    fill = list(n = 0)
+  ) %>%
+  select(
+    C2_forestType,
+    `Naturally regenerating forest`,
+    `Planted or plantation forest`,
+    `Other LU`
+  ) %>%
+  mutate(
+    Total = rowSums(across(
+      c(
+        `Naturally regenerating forest`,
+        `Planted or plantation forest`,
+        `Other LU`
+      )
+    )),
+    C2_forestType = factor(
+      C2_forestType,
+      levels = c(
+        "Naturally regenerating forest",
+        "Planted or plantation forest",
+        "Other LU"
+      )
+    )
+  ) %>%
+  arrange(C2_forestType) %>%
+  mutate(
+    across(everything(), as.character)
+  )
+
+agreement <- samples_reviewed %>%
+  mutate(
+    C2_forestClass = if_else(
+      forest_class_num == 1, "Forest", "Non-forest"
+    )
+  ) %>%
+  filter(C2_forestClass == visual_forestClass) %>%
+  mutate(
+    C2_forestType = case_when(
+      type_class %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ type_class
+    ),
+    visual_forestType = case_when(
+      visual_forestType %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ visual_forestType
+    )
+  ) %>%
+  summarise(
+    agreement = sum(C2_forestType == visual_forestType),
+    n = n(),
+    agreement_pct = 100 * agreement / n
+  )
+
+class_type_check <- bind_rows(
+  class_type_check,
+  tibble(
+    C2_forestType = "Overall agreement",
+    `Naturally regenerating forest` = "",
+    `Planted or plantation forest` = "",
+    `Other LU` = "",
+    Total = paste0(
+      agreement$agreement, "/",
+      agreement$n, " (",
+      round(agreement$agreement_pct), "%)"
+    )
+  )
+)
+
+class_type_check %>% data.frame()  # only samples with agreement
+
+
+
+
+
+# Forest type comparison: all samples, not only samples with agreement
+
+class_type_check <- samples_reviewed %>%
+  mutate(
+    C2_forestType = case_when(
+      type_class %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ type_class
+    ),
+    visual_forestType = case_when(
+      visual_forestType %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ visual_forestType
+    )
+  ) %>%
+  count(C2_forestType, visual_forestType) %>%
+  pivot_wider(
+    names_from = visual_forestType,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  complete(
+    C2_forestType = c(
+      "Naturally regenerating forest",
+      "Planted or plantation forest",
+      "Other LU"
+    ),
+    fill = list(n = 0)
+  ) %>%
+  select(
+    C2_forestType,
+    `Naturally regenerating forest`,
+    `Planted or plantation forest`,
+    `Other LU`
+  ) %>%
+  mutate(
+    Total = rowSums(across(
+      c(
+        `Naturally regenerating forest`,
+        `Planted or plantation forest`,
+        `Other LU`
+      )
+    )),
+    C2_forestType = factor(
+      C2_forestType,
+      levels = c(
+        "Naturally regenerating forest",
+        "Planted or plantation forest",
+        "Other LU"
+      )
+    )
+  ) %>%
+  arrange(C2_forestType) %>%
+  mutate(
+    across(everything(), as.character)
+  )
+
+
+# Overall agreement
+agreement <- samples_reviewed %>%
+  mutate(
+    C2_forestType = case_when(
+      type_class %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ type_class
+    ),
+    visual_forestType = case_when(
+      visual_forestType %in% c(
+        "trees inside forest",
+        "trees in urban areas",
+        "trees outside forest",
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use"
+      ) ~ "Other LU",
+      TRUE ~ visual_forestType
+    )
+  ) %>%
+  summarise(
+    agreement = sum(C2_forestType == visual_forestType),
+    n = n(),
+    agreement_pct = 100 * agreement / n
+  )
+
+
+# Add Overall agreement row
+class_type_check <- bind_rows(
+  class_type_check,
+  tibble(
+    C2_forestType = "Overall agreement",
+    `Naturally regenerating forest` = "",
+    `Planted or plantation forest` = "",
+    `Other LU` = "",
+    Total = paste0(
+      agreement$agreement, "/",
+      agreement$n, " (",
+      round(agreement$agreement_pct), "%)"
+    )
+  )
+)
+
+class_type_check %>% data.frame()
+
+
+
+#### Certainty in the disagreements  ####
+
+samples_reviewed <- read.csv(paste0(dir_GFTv1_assessment_c2, "samples_2review_50_2.csv"))
+nrow(samples_reviewed)
+names(samples_reviewed)
+head(samples_reviewed)
+
+sort(unique(samples_reviewed$visual_forestType))
+sort(unique(samples_reviewed$type_class))
+
+discrep_forest <- samples_reviewed %>%
+  mutate(C2_forestClass = if_else(forest_class_num == 1, "Forest", "Non-forest")) %>% 
+  filter(visual_forestClass != C2_forestClass) #%>%  nrow()  # 6
+
+discrep_type <- samples_reviewed %>%
+  filter(visual_forestType != type_class) #%>%   
+  select("sample_id", "visual_forestClass", "visual_forestType", "Certainty_discrepancy",
+         "forest_class_num", "type_class") %>% View #nrow()  # 17 This is one more because there's one that the difference is in LU type (Non-forest)
+                                                             # In the previous tables, these Non-forest types were aggregated, and therefore equal
+discrep_type %>% 
+  filter_out(Certainty_discrepancy %in% c("Certain", "Uncertain")) %>% 
+  pull(sample_id)
+
+
+
+#
+
+
+
+
+
+
+##___________
+
+### Comparison C2 with IIASA and Google forest types maps  ########
+
+
+Valid_c2_IIASA_Google <- read.csv(paste0(dir_GFTv1_assessment_c2, "Valid_c2_coords_IIASA_Google_ForestTypes.csv"))
+
+head(Valid_c2_IIASA_Google)
+nrow(Valid_c2_IIASA_Google)
+names(Valid_c2_IIASA_Google)
+
+sort(unique(Valid_c2_IIASA_Google$IIASA_GFM))    #  0 1 2 3 4 5 6 7 8
+# 1) naturally regenerating with no signs of management
+# 2) naturally regenerating with signs of management
+# 3) replanted forest
+# 4) plantation forest
+# 5) rubber
+# 6) oil palms
+# 7) fruit trees
+# 8) agroforestry
+table(Valid_c2_IIASA_Google$IIASA_GFM)    
+sum(is.na(Valid_c2_IIASA_Google$IIASA_GFM)) 
+
+
+sort(unique(Valid_c2_IIASA_Google$Google_ForestType))    #   1 2 3 4 5
+#  1=Primary, 2=Naturally Regenerating, 3=Planted, 4=Plantation, 5=Tree Crops & Agroforestry, 6=Other land
+table(Valid_c2_IIASA_Google$Google_ForestType)  
+
+
+sort(unique(Valid_c2_IIASA_Google$type_class))  
+
+
+## IIASA
+
+Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>%
+  mutate(
+    IIASA_forestType = case_when(
+      IIASA_GFM %in% c(1, 2) ~ "Naturally regenerating forest", 
+      IIASA_GFM %in% c(3, 4) ~ "Planted or plantation forest",  
+      IIASA_GFM %in% c(5, 6, 7, 8) ~ "Non-forest",                
+      TRUE ~ NA_character_
+    ),
+    C2_forestType = case_when(
+      type_class %in% c(
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use",
+        "trees in urban areas",
+        "trees inside forest",
+        "trees outside forest"
+      ) ~ "Non-forest",
+      type_class == "Naturally regenerating forest" ~ 
+        "Naturally regenerating forest",
+      type_class == "Planted or plantation forest" ~ 
+        "Planted or plantation forest",
+      TRUE ~ NA_character_
+    )
+  ) # %>% head()
+
+
+filter_NEurope <- "yes"
+filter_NEurope <- "no"
+if(filter_NEurope == "yes"){
+  Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>% 
+    filter(Region == "Northern, Central and Eastern Europe") # 
+  nrow(Valid_c2_IIASA_Google) # 605
+  sum(Valid_c2_IIASA_Google$IIASA_GFM == 0)  # 25
+}
+
+nrow(Valid_c2_IIASA_Google) 
+
+
+tab <- table(
+    C2 = factor(
+      Valid_c2_IIASA_Google$C2_forestType,
+      levels = c("Naturally regenerating forest", "Planted or plantation forest", "Non-forest")),
+    IIASA = factor(
+      Valid_c2_IIASA_Google$IIASA_forestType,
+      levels = c("Naturally regenerating forest", "Planted or plantation forest", "Non-forest")),
+    #useNA = "ifany"
+    useNA = "no"
+  )
+
+addmargins(tab)
+
+
+tab_pct <- round(100 * tab / sum(tab), 1)
+addmargins(tab_pct)
+
+
+agreement <- round(100 * mean(Valid_c2_IIASA_Google$C2_forestType == Valid_c2_IIASA_Google$IIASA_forestType,  na.rm = TRUE), 1)
+
+
+tab_pct <- cbind(addmargins(tab_pct), `Total Agreement (%)` = c(rep(NA, nrow(addmargins(tab_pct)) - 1), agreement))
+
+tab_pct
+
+#
+
+
+## Google
+Valid_c2_IIASA_Google <- read.csv(paste0(dir_GFTv1_assessment_c2, "Valid_c2_coords_IIASA_Google_ForestTypes.csv"))
+
+names(Valid_c2_IIASA_Google)
+sort(unique(Valid_c2_IIASA_Google$Google_ForestType))
+table(Valid_c2_IIASA_Google$Google_ForestType)
+#  1=Primary, 2=Naturally Regenerating, 3=Planted, 4=Plantation, 5=Tree Crops & Agroforestry, 6=Other land
+
+
+
+Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>%
+  mutate(
+    GoogleFTM = case_when(
+      Google_ForestType %in% c(1, 2) ~ "Naturally regenerating forest",  
+      Google_ForestType %in% c(3, 4) ~ "Planted or plantation forest",   
+      Google_ForestType %in% c(5, 6) ~                    "Non-forest",                                         
+      TRUE ~ NA_character_
+    ),
+    C2_forestType = case_when(
+      type_class %in% c(
+        "no trees or shrubs present",
+        "other wooded land",
+        "trees for agricultural use",
+        "trees in urban areas",
+        "trees inside forest",
+        "trees outside forest"
+      ) ~ "Non-forest",
+      type_class == "Naturally regenerating forest" ~ 
+        "Naturally regenerating forest",
+      type_class == "Planted or plantation forest" ~ 
+        "Planted or plantation forest",
+      TRUE ~ NA_character_
+    )
+  ) # %>% head()
+
+
+filter_NEurope <- "yes"
+filter_NEurope <- "no"
+if(filter_NEurope == "yes"){
+  Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>% 
+    filter(Region == "Northern, Central and Eastern Europe") # 
+  nrow(Valid_c2_IIASA_Google) # 605
+  table(Valid_c2_IIASA_Google$Google_ForestType)
+  sum(is.na(Valid_c2_IIASA_Google$Google_ForestType))  # 0
+}
+
+nrow(Valid_c2_IIASA_Google) 
+table(Valid_c2_IIASA_Google$GoogleFTM) 
+
+
+tab <- table(
+    C2 = factor(
+      Valid_c2_IIASA_Google$C2_forestType,
+      levels = c("Naturally regenerating forest", "Planted or plantation forest", "Non-forest")),
+    Google = factor(
+      Valid_c2_IIASA_Google$GoogleFTM,
+      levels = c("Naturally regenerating forest", "Planted or plantation forest", "Non-forest")),
+    #useNA = "ifany"
+    useNA = "no"
+  )
+
+addmargins(tab)
+
+
+tab_pct <- round(100 * tab / sum(tab), 1)
+addmargins(tab_pct)
+
+
+agreement <- round(100 * mean(Valid_c2_IIASA_Google$C2_forestType == Valid_c2_IIASA_Google$GoogleFTM,  na.rm = TRUE), 1)
+
+
+tab_pct <- cbind(addmargins(tab_pct), `Total Agreement (%)` = c(rep(NA, nrow(addmargins(tab_pct)) - 1), agreement))
+
+tab_pct
+
+# A map of disagreement
+#Valid_c2_IIASA_Google <- read.csv(paste0(dir_GFTv1_assessment_c2, "Valid_c2_coords_IIASA_Google_ForestTypes.csv"))
+names(Valid_c2_IIASA_Google)
+
+Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>%
+  mutate(
+    disagreement = case_when(
+      is.na(C2_forestType) | is.na(GoogleFTM) ~ NA_character_,
+      
+      C2_forestType == GoogleFTM ~ "Agreement",
+      
+      C2_forestType == "Non-forest" &
+        GoogleFTM != "Non-forest" ~
+        "C2 Non-forest / Google Forest",
+      
+      C2_forestType != "Non-forest" &
+        GoogleFTM == "Non-forest" ~
+        "C2 Forest / Google Non-forest",
+      
+      C2_forestType == "Naturally regenerating forest" &
+        GoogleFTM == "Planted or plantation forest" ~
+        "C2 Natural / Google Planted",
+      
+      C2_forestType == "Planted or plantation forest" &
+        GoogleFTM == "Naturally regenerating forest" ~
+        "C2 Planted / Google Natural",
+      
+      TRUE ~ "Other forest type disagreement"
+    )
+  )
+
+
+head(Valid_c2_IIASA_Google)
+names(Valid_c2_IIASA_Google)
+sort(unique(Valid_c2_IIASA_Google$disagreement))
+table(Valid_c2_IIASA_Google$disagreement)
+
+
+Valid_c2_IIASA_Google <- Valid_c2_IIASA_Google %>%
+  mutate(
+    longitude = as.numeric(str_extract(.geo, "(?<=\\[)-?[0-9.]+")),
+    latitude  = as.numeric(str_extract(.geo, "(?<=,)-?[0-9.]+"))
+  )
+
+ggplot(
+  Valid_c2_IIASA_Google %>%
+    filter(!is.na(disagreement),
+           disagreement != "Agreement")
+) +
+  geom_point(
+    aes(x = longitude, y = latitude, color = disagreement),
+    size = 2
+  ) +
+  coord_fixed() +
+  theme_minimal() +
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    color = "Disagreement"
+  )
+
+
+##___________
+
+
+
+
+
 
 
 
