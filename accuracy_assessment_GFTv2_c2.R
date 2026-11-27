@@ -75,7 +75,7 @@ Valid_c2 <- read.csv(paste0(dir_Valid_c2, "Valid_c2_coords.csv"))
 head(Valid_c2)
 names(Valid_c2)
 nrow(Valid_c2)  # 21612
-table(Valid_c2$forest_class)
+table(Valid_c2$forest_class)   # these are the reference
 #     Forest   Non-forest 
 #       6658        14954 
 
@@ -117,7 +117,7 @@ table(Valid_c2_GFT2020_V2$GFT2020_V2)  # 1: Naturally regenerating forest; 10: P
 #    1     2    3 
 # 2771  3343  601 
 # 2819  3040  856
-# 3110  3027  578 
+# 3110  3027  578    # These are the GFT values
 
 nrow(Valid_c2_GFT2020_V2)  # 6715
 table(Valid_c2_GFT2020_V2$forest_class)
@@ -1733,5 +1733,626 @@ if(plot_this == "yes"){
          plot = ch_p, 
          width = 20, height = 12, units = "cm", dpi = 600, bg = "white")
 }
+
+
+
+
+
+
+
+
+
+
+
+
+## 2-class assessment ####
+
+### filtering C2 samples ##
+
+length(unique(Valid_c2_GFT2020_V2_full$strata))   # 149
+table(Valid_c2_GFT2020_V2_full$strata, useNA = "always") %>% sum  # 21612
+table(Valid_c2_GFT2020_V2_full$strata, useNA = "always") %>% sort  # when using the full C2 dataset, there is no stratum with 0 or 1 samples
+table(Valid_c2_GFT2020_V2_full$strata, useNA = "always") %>% length  # 150 (149 + NA). when using the full C2 dataset, there is no stratum with 0 or 1 samples
+
+## Selecting those samples that fall in GFC-v4 = Forest
+dir_GFC_assessment_c2 <- "/Users/xavi_rp/Documents/JRC_D1/AccuracyAssessment_Second/2nd_Assessment/GFC2020_v4_Valid_c2"
+Valid_c2_GFC2020 <- read.csv(paste0(dir_GFC_assessment_c2, "/Valid_c2_coords_GFC2020_V4.csv"))   # GFC v4
+head(Valid_c2_GFC2020)
+nrow(Valid_c2_GFC2020)  # 6715
+names(Valid_c2_GFC2020)
+
+
+Valid_c2_GFC2020 %>% pull("strata") %>% table(useNA = "always") %>% sort %>% #sum # 6715
+  length  # 120 (+1 NA) strata that fall in GFC-v4 = Forest, and with 1 or more samples (notice that there are only samples with forests in C2  (6715))
+          # When collecting the rest of samples (Non-Forest), the rest of strata (29) get samples
+          # Implicitly, this means that there are already 29 strata with no forest samples and, therefore, that should not add forest areas to the estimations
+
+strataGFC_withForest <- Valid_c2_GFC2020 %>% pull("strata") %>% unique() %>% sort
+length(strataGFC_withForest) # 120 strata that have samples with forest
+
+## Identify strata
+strata_area <- read.csv(paste0(dir_assessment2024, "strata_size.csv"))
+head(strata_area)
+strata_all <- strata_area$Strata %>% sort
+# strata names in /Users/xavi_rp/.mounty/xavi_rp/JRC_D1/AstridHandoverToClement/Validation/stratification_CGLOPS/stratification_name.xlsx
+
+strata_all[!strata_all %in% strataGFC_withForest] #%>% length   # 29 strata that have no forest  
+# 1004 Africa*desert  
+# 1221 Africa*Urban rare
+# 1222 
+# 2029 North America*tundra
+# 2030 North America*Snow and Ice
+# 2225 
+# 4004 Asia*Desert
+# 4029 4104 4221 4222 4226 5221 
+# 5222 Europe*Water rare
+# 5225 5226 5227 6004 6030 6104 6221 6222 6226 6227 7222 7225 8004 8221 8226
+
+
+## Samples that fall into C2 = Forest and GFT-v2 = Forest   --> These are the ones relevant for the GFT 2-class assessment
+Valid_c2_GFT2020_V2_OnlyForest <- Valid_c2_GFT2020_V2_full %>% 
+  left_join(Valid_c2_GFC2020 %>% select(location_id, Map) %>% rename(GFC2020 = Map),
+            by = "location_id") %>% #nrow # 21612   #head()
+  filter(forest_class == "Forest" & GFT_forest == "Forest" ) %>% nrow  # 6658 - 5957
+  
+head(Valid_c2_GFT2020_V2_OnlyForest)
+nrow(Valid_c2_GFT2020_V2_OnlyForest)
+
+#write.csv(Valid_c2_GFT2020_V2_OnlyForest, 
+#          paste0(dir_GFTv2_assessment_c2, "Valid_c2_GFT2020_V2_OnlyForest.csv"), row.names = FALSE)
+  
+Valid_c2_GFT2020_V2_OnlyForest <- read.csv(paste0(dir_GFTv2_assessment_c2, "Valid_c2_GFT2020_V2_OnlyForest.csv"))
+
+nrow(Valid_c2_GFT2020_V2_OnlyForest)   # 5957
+head(Valid_c2_GFT2020_V2_OnlyForest)   
+
+
+length(unique(Valid_c2_GFT2020_V2_OnlyForest$strata))  # 118 strata with forest samples
+table(Valid_c2_GFT2020_V2_OnlyForest$strata, useNA = "always") %>% sort
+
+strataGFC_GFT_withForest <- Valid_c2_GFT2020_V2_OnlyForest$strata %>% unique %>% sort
+
+strataGFC_withForest %>% length # 120
+strataGFC_withForest[!strataGFC_withForest %in% strataGFC_GFT_withForest]
+# 2223 North America * wetland rare
+# 6029 northern eurasia * tundra
+# Hello guys, some good news about the 2-class GFT assessment. Remember that I found 31 strata that ended up with no samples when removing the 758 samples that fall out of forest in GFC-v4? So these are actually non forested strata such as Africa desert, North America*tundra or Europe*Water rare. So,  think I can now go ahead with the assessment
+
+
+
+### Calculating forest areas per stratum ####
+
+library(terra)
+
+koppen_final_100m_NEW_water_continent_rare1_WGs <- rast(paste0("/Users/xavi_rp/.mounty/xavi_rp/JRC_D1/AstridHandoverToClement/Validation/stratification_CGLOPS/", "koppen_final_100m_NEW_water_continent+rare1_WGS.tif"))
+
+koppen_final_100m_NEW_water_continent_rare1_WGS  # uploaded to GEE to calculate forest areas per stratum 
+
+
+
+koppen_final_100m_NEW_water_continent_rare1_WGS_EqualEarth <- rast(paste0("/Users/xavi_rp/.mounty/xavi_rp/JRC_D1/AstridHandoverToClement/Validation/stratification_CGLOPS/", "koppen_final_100m_NEW_water_continent+rare1_WGS_EqualEarth.tif"))
+
+koppen_final_100m_NEW_water_continent_rare1_WGS_EqualEarth  # Has several issues in the metadata that prevent them of being uploaded to GEE
+ 
+
+##___________
+# Done in GEE. Script:  'GFT_v1_v2_Assessment/StratumForestAreas_GFCv4'
+
+##___________
+
+
+dir_GFTv2_asssessment_c2_2class <- "/Users/xavi_rp/Documents/JRC_D1/AccuracyAssessment_GFT/GFTv2_asssessment_c2_2class/"
+
+# Identify GEE CSV files
+gee_files <- list.files(
+  path = dir_GFTv2_asssessment_c2_2class,
+  pattern = "^GFC2020_V4_Forest_Stratum_Band_.*\\.csv$",
+  full.names = TRUE
+)
+
+# Read and combine
+df_forest_strata <- gee_files %>%
+  map_dfr(read_csv, show_col_types = FALSE) %>% 
+  select(stratum, forest_ha)
+
+head(df_forest_strata)
+nrow(df_forest_strata)  # 659
+n_distinct(df_forest_strata$stratum)  # 149
+sum(df_forest_strata$forest_ha, na.rm = TRUE)   # 4158882326 ha
+sum(df_forest_strata$forest_ha, na.rm = TRUE) / 10^6   # 4158.882 Mha
+
+# Export consolidated CSV
+write_csv(df_forest_strata, paste0(dir_GFTv2_asssessment_c2_2class, "GFC2020_V4_Forest_Stratum_All_Bands.csv"))
+
+
+
+
+# Aggregate forest area by stratum
+df_stratum_weights <- df_forest_strata %>%
+  group_by(stratum) %>%
+  summarise(area_ha = sum(forest_ha, na.rm = TRUE), .groups = "drop") %>%
+  mutate(stratum_weight = area_ha / sum(area_ha)) %>% 
+  rename(forest_area_ha = area_ha)
+
+head(df_stratum_weights)
+nrow(df_stratum_weights)  # 149
+
+
+# Check weights
+sum(df_stratum_weights$stratum_weight)  # 1
+sum(df_stratum_weights$forest_area_ha)       # 4158882326 ha
+
+# Export
+write_csv(df_stratum_weights, paste0(dir_GFTv2_asssessment_c2_2class, "GFC2020_V4_Forest_Stratum_Weights.csv"))
+
+
+
+
+#
+
+
+### 2-class assessment: Natural Forest vs Planted Forest ####
+
+Valid_c2_GFT2020_V2_OnlyForest <- read.csv(paste0(dir_GFTv2_assessment_c2, "Valid_c2_GFT2020_V2_OnlyForest.csv"))
+
+head(Valid_c2_GFT2020_V2_OnlyForest)
+nrow(Valid_c2_GFT2020_V2_OnlyForest)   # 5957
+
+sort(unique(Valid_c2_GFT2020_V2_OnlyForest$GFT2020_V2))  # 1 10 20:   1: Naturally regenerating forest; 10: Primary forest; 20: Planted/plantation forest
+sort(unique(Valid_c2_GFT2020_V2_OnlyForest$type_class))  # "Naturally regenerating forest"   "Planted or plantation forest" 
+
+
+map_ref_values_2class <- Valid_c2_GFT2020_V2_OnlyForest %>%
+  mutate(
+    reference_2class = case_when(
+      type_class == "Naturally regenerating forest" ~ 1,
+      type_class == "Planted or plantation forest"  ~ 2
+    ),
+    map_2class = case_when(
+      GFT2020_V2 %in% c(1, 10) ~ 1,
+      GFT2020_V2 == 20         ~ 2
+    )
+  )
+
+
+head(map_ref_values_2class)
+
+table(map_ref_values_2class$reference_2class, useNA = "always")
+table(map_ref_values_2class$map_2class, useNA = "always")
+
+addmargins(
+  table(
+    Reference = map_ref_values_2class$reference_2class,
+    GFT2020_V2 = map_ref_values_2class$map_2class
+  )
+)
+
+colSums(is.na(map_ref_values_2class[, c("reference_2class", "map_2class")]))
+
+
+
+# Load forest-specific stratum weights
+df_stratum_weights <- read.csv(paste0(dir_GFTv2_asssessment_c2_2class, "GFC2020_V4_Forest_Stratum_Weights.csv"))
+head(df_stratum_weights)
+
+# Prepare Nh_strata for stehman2014()
+Nh_strata <- df_stratum_weights$forest_area_ha
+names(Nh_strata) <- df_stratum_weights$stratum
+
+(Nh_strata) %>% sort
+sum(Nh_strata)                 # 4,158,882,326 ha
+length(Nh_strata)  # 149
+
+
+# 30 strata with positive GFC2020 v4 forest area but no samples in our two-class assessment dataset.
+# Forest area in strata without assessment samples
+missing_strata <- setdiff(strata_with_area, strata_with_samples)
+
+df_stratum_weights %>%
+  filter(as.character(stratum) %in% missing_strata) %>%
+  arrange(desc(forest_area_ha)) %>%
+  select(stratum, forest_area_ha, stratum_weight)
+
+# Total proportion of forest area without samples
+sum(Nh_strata[missing_strata]) / sum(Nh_strata)  # The missing strata account for only 0.1649% of the total GFC2020 v4 forest area.
+                                                 # 99.8351% of the forest area is represented by strata containing assessment samples.
+
+sum(Nh_strata[missing_strata])  #    6858962    Forest area without samples (ha)
+sum(Nh_strata)                  # 4158882326    Total forest area (ha)
+
+
+
+strata_to_check <- c("2223", "6029")
+
+## 1. GFC2020 v4: samples mapped as Forest in these strata
+Valid_c2_GFC2020 %>%
+  filter(as.character(strata) %in% strata_to_check) %>%
+  count(strata, Map, forest_class, type_class)
+
+## 2. Full C2 dataset: reference and GFT map classifications
+Valid_c2_GFT2020_V2_full %>%
+  filter(as.character(strata) %in% strata_to_check) %>%
+  count(strata, forest_class, GFT_forest, GFT2020_V2, type_class) %>%
+  arrange(strata, forest_class, GFT_forest)
+
+## 3. Check whether the samples are in the assessment dataset
+Valid_c2_GFT2020_V2_OnlyForest %>%
+  filter(as.character(strata) %in% strata_to_check) %>%
+  count(strata, type_class, GFT2020_V2)
+
+## 4. Forest areas assigned to these strata
+df_stratum_weights %>%
+  filter(as.character(stratum) %in% strata_to_check) %>%
+  select(stratum, forest_area_ha, stratum_weight)
+
+
+## Strata with no validation samples were automatically excluded from the estimation (by stehman2014). 
+## These strata represented approximately 0.16% of the total mapped forest area.
+
+
+
+#### Stehman ####
+head(map_ref_values_2class)
+
+# Strata
+s <- map_ref_values_2class$strata
+sum(is.na(s))
+head(s)
+table(s)
+table(s) %>% sort
+
+# Reference classification (C2)
+r <- map_ref_values_2class$reference_2class
+head(r)
+table(r)
+
+# Map classification (GFT2020 v2)
+m <- map_ref_values_2class$map_2class
+head(m)
+table(m)
+
+# Class order: 1 = Natural/prmary forest; 2 = Planted/plantation forest
+order <- c(1, 2)
+
+scenario_AA_2class <- stehman2014(
+  s,
+  r,
+  m,
+  Nh_strata,
+  margins = TRUE,
+  order
+)
+
+scenario_AA_2class  # Warning message: The following strata include only one observation: 2221; 2222; 4224; 6223; 8222; 8223 
+
+
+
+## Overall accuracy
+scenario_AA_2class$OA   # 0.9586316
+
+## User's accuracy (commission-related)
+scenario_AA_2class$UA
+#        1         2 
+#0.9817688 0.5704557 
+
+
+## Commission error
+1 - scenario_AA_2class$UA
+#         1          2 
+#0.01823116 0.42954430 
+
+
+## Producer's accuracy (omission-related)
+scenario_AA_2class$PA
+#        1         2 
+#0.9745844 0.6509655 
+
+## Omission error
+1 - scenario_AA_2class$PA
+#          1          2 
+# 0.02541559 0.34903448 
+
+
+
+
+## Accuracy table with 95% confidence intervals ####
+
+accuracy_table <- data.frame(
+  Class = c("Overall accuracy",
+            "Naturally regenerating forest",
+            "Planted or plantation forest"),
+  
+  UA = c(NA, scenario_AA_2class$UA),
+  SE_UA = c(NA, scenario_AA_2class$SEua),
+  
+  PA = c(NA, scenario_AA_2class$PA),
+  SE_PA = c(NA, scenario_AA_2class$SEpa)
+) %>%
+  mutate(
+    OA = c(scenario_AA_2class$OA, NA, NA),
+    SE_OA = c(scenario_AA_2class$SEoa, NA, NA)
+  ) %>%
+  mutate(
+    OA_LCL = OA - 1.96 * SE_OA,
+    OA_UCL = OA + 1.96 * SE_OA,
+    
+    UA_LCL = UA - 1.96 * SE_UA,
+    UA_UCL = UA + 1.96 * SE_UA,
+    
+    PA_LCL = PA - 1.96 * SE_PA,
+    PA_UCL = PA + 1.96 * SE_PA
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(.x * 100, 2)))
+
+accuracy_table
+
+
+## Reporting table – GFT2020 v2, two-class assessment
+
+
+
+report_error_matrix <- function(data,
+                                map_col,
+                                ref_col,
+                                assessment,
+                                output_dir,
+                                sheet_name = NULL,
+                                excel_file = xlsx_fileName,
+                                png_file = png_file,
+                                export_file = "no") {
+  
+  ## Names
+  
+  dataset_name <- as.character(substitute(data))
+  
+  if (is.null(sheet_name)) {
+    sheet_name <- paste0("Err_matr_", map_col, "_", dataset_name)
+  }
+  
+  # Excel sheet names: maximum 31 characters
+  sheet_name <- substr(sheet_name, 1, 31)
+  
+  
+  ## Class labels
+  
+  class_labels <- c(
+    "Naturally regenerating forest (incl. primary)",
+    "Planted/plantation forest"
+  )
+  
+  
+  ## Raw confusion matrix
+  
+  raw <- addmargins(table(
+    Map = factor(data[[map_col]],
+                 levels = c(1, 2),
+                 labels = class_labels),
+    Reference = factor(data[[ref_col]],
+                       levels = c(1, 2),
+                       labels = class_labels)
+  ))
+  
+  
+  ## Cell proportions (%)
+  
+  prop <- raw
+  prop_1 <- round(assessment$matrix, 3) * 100
+  
+  prop[class_labels[1], class_labels[1]] <- prop_1["1", "1"]
+  prop[class_labels[1], class_labels[2]] <- prop_1["1", "2"]
+  prop[class_labels[1], "Sum"]           <- prop_1["1", "sum"]
+  
+  prop[class_labels[2], class_labels[1]] <- prop_1["2", "1"]
+  prop[class_labels[2], class_labels[2]] <- prop_1["2", "2"]
+  prop[class_labels[2], "Sum"]           <- prop_1["2", "sum"]
+  
+  prop["Sum", class_labels[1]] <- prop_1["sum", "1"]
+  prop["Sum", class_labels[2]] <- prop_1["sum", "2"]
+  prop["Sum", "Sum"]            <- prop_1["sum", "sum"]
+  
+  
+  ## Commission errors
+  
+  commission <- c(
+    
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$UA["1"]) * 100,
+            1.96 * assessment$SEua["1"] * 100),
+    
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$UA["2"]) * 100,
+            1.96 * assessment$SEua["2"] * 100),
+    
+    "",
+    ""
+    
+  )
+  
+  
+  ## Omission errors
+  
+  omission <- c(
+    
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$PA["1"]) * 100,
+            1.96 * assessment$SEpa["1"] * 100),
+    
+    sprintf("%.1f (%.1f)",
+            (1 - assessment$PA["2"]) * 100,
+            1.96 * assessment$SEpa["2"] * 100),
+    
+    "",
+    paste0("OA Acc. (CI95) [%] = ",
+           sprintf("%.1f (%.1f)",
+                   assessment$OA * 100,
+                   1.96 * assessment$SEoa * 100))
+    
+  )
+  
+  
+  ## Reporting table
+  
+  report_table <- data.frame(
+    
+    Class = c(
+      class_labels,
+      "Total",
+      "Omission (CI95) [%]"
+    ),
+    
+    Raw_Natural = c(raw[1,1], raw[2,1], raw[3,1], ""),
+    Raw_Planted = c(raw[1,2], raw[2,2], raw[3,2], ""),
+    Raw_Total   = c(raw[1,3], raw[2,3], raw[3,3], ""),
+    
+    Prop_Natural = c(prop[1,1], prop[2,1], prop[3,1], omission[1]),
+    Prop_Planted = c(prop[1,2], prop[2,2], prop[3,2], omission[2]),
+    Prop_Total   = c(prop[1,3], prop[2,3], prop[3,3], ""),
+    
+    commission_ci95 = commission,
+    check.names = FALSE
+    
+  )
+  
+  report_table[4, "commission_ci95"] <- omission[4]
+  
+  names(report_table)[8] <- "Commission (CI95) [%]"
+  
+  
+  ## Excel
+  
+  if (export_file == "yes") {
+    
+    excel_path <- file.path(output_dir, excel_file)
+    
+    if (file.exists(excel_path)) {
+      
+      wb <- openxlsx::loadWorkbook(excel_path)
+      
+      if (sheet_name %in% names(wb)) {
+        removeWorksheet(wb, sheet_name)
+      }
+      
+    } else {
+      
+      wb <- createWorkbook()
+      
+    }
+    
+    addWorksheet(wb, sheet_name)
+    
+    writeData(
+      wb,
+      sheet = sheet_name,
+      x = report_table
+    )
+    
+    saveWorkbook(
+      wb,
+      excel_path,
+      overwrite = TRUE
+    )
+    
+  } else {
+    
+    print("Excel table not exported to disk")
+    
+  }
+  
+  
+  ## Flextable
+  
+  ft <- flextable(report_table)
+  
+  ft <- bg(ft, bg = "white", part = "all")
+  
+  grey <- "#808080"
+  
+  border <- fp_border(color = grey, width = 1)
+  
+  ft <- border_remove(ft)
+  ft <- border_outer(ft, border)
+  ft <- border_inner_h(ft, border)
+  ft <- border_inner_v(ft, border)
+  
+  ft <- add_header_row(
+    ft,
+    values = c(
+      "",
+      "Raw counts (Reference)",
+      "Proportions [%] (Reference)",
+      ""
+    ),
+    colwidths = c(1, 3, 3, 1)
+  )
+  
+  ft <- bold(ft, part = "header")
+  ft <- align(ft, align = "center", part = "header")
+  ft <- bold(ft, j = 1, bold = TRUE, part = "body")
+  ft <- align(ft, j = 2:8, align = "center", part = "body")
+  ft <- valign(ft, valign = "center", part = "all")
+  ft <- autofit(ft)
+  ft <- bold(ft, i = 4, j = 8, bold = TRUE, part = "body")
+  
+  
+  ## PNG
+  
+  if (export_file == "yes") {
+    
+    save_as_image(
+      ft,
+      path = file.path(output_dir, png_file)
+    )
+    
+  } else {
+    
+    print("PNG image not exported to disk")
+    
+  }
+  
+  
+  ## Return objects
+  
+  invisible(
+    list(
+      raw_table = raw,
+      table = report_table,
+      flextable = ft
+    )
+  )
+  
+}
+
+GFTv2_Valid_c2_2class <- map_ref_values_2class
+
+
+v <- "GFT_v2_Valid_c2_2class"
+xlsx_fileName <- paste0("Table_ErrorMatrix_", v, ".xlsx")
+png_file <- paste0("Err_matr_", v, ".png")
+
+
+res_2class <- report_error_matrix(
+  data       = GFTv2_Valid_c2_2class,
+  map_col    = "map_2class",
+  ref_col    = "reference_2class",
+  assessment = scenario_AA_2class,
+  output_dir = dir_GFTv2_asssessment_c2_2class,
+  excel_file = xlsx_fileName,
+  export_file = "yes",
+  png_file = png_file
+)
+
+
+res_2class$raw_table
+res_2class$table
+res_2class$flextable
+
+
+#
+
+
+
+
+
+
 
 
